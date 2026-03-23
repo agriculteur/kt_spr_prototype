@@ -56,8 +56,9 @@
     const prenom = isFemale ? randomFrom(PRENOMS_F) : randomFrom(PRENOMS_M);
     const nom = randomFrom(NOMS);
     const email = `${prenom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}.${nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}@autorite.qc.ca`;
+    const safeIndex = ((Number(imgIndex) - 1 + 70) % 70) + 1;
     return {
-      photo: `https://i.pravatar.cc/150?img=${imgIndex}`,
+      photo: `https://i.pravatar.cc/150?img=${safeIndex}`,
       prenom,
       nom,
       email,
@@ -1203,13 +1204,20 @@
   function renderAvatarHtml(person, size = "w-6 h-6") {
     if (!person)
       return "";
-    const initials = getInitials(person.prenom, person.nom);
-    const fallbackHtml = `<div class="${size} rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">${initials}</div>`;
+    const faceSvg = `<div class="${size} rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    </div>`;
     if (person.photo) {
-      const imgHtml = `<img src="${escapeHtml(person.photo)}" alt="${escapeHtml(person.prenom)}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold&quot;>${initials}</div>';">`;
-      return imgHtml;
+      try {
+        const safeSrc = escapeHtml(person.photo);
+        const imgHtml = `<img src="${safeSrc}" alt="${escapeHtml(person.prenom)}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML=\`<div class=&quot;${size} rounded-full bg-blue-100 flex items-center justify-center text-blue-600&quot;><svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 24 24&quot; class=&quot;w-4 h-4&quot; fill=&quot;currentColor&quot;><path d=&quot;M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z&quot;/></svg></div>\`">`;
+        return imgHtml;
+      } catch (e) {
+        console.warn("Avatar rendering failed", e);
+        return faceSvg;
+      }
     }
-    return fallbackHtml;
+    return faceSvg;
   }
 
   // js/views/dashboard.js
@@ -1316,6 +1324,34 @@
       if (p.statut === "termin\xE9")
         completionByDir[d].done++;
     }
+    const byReglement = {};
+    for (const p of projects) {
+      const r = p.reglement || "Non d\xE9fini";
+      byReglement[r] = (byReglement[r] || 0) + 1;
+    }
+    const risquePrioriteCroix = {
+      "\xE9lev\xE9": { "faible": 0, "moyen": 0, "\xE9lev\xE9": 0 },
+      "moyen":       { "faible": 0, "moyen": 0, "\xE9lev\xE9": 0 },
+      "faible":      { "faible": 0, "moyen": 0, "\xE9lev\xE9": 0 }
+    };
+    for (const p of projects) {
+      const r = p.niveau_risque || "faible";
+      const pr = p.priorite || "faible";
+      if (risquePrioriteCroix[r] && risquePrioriteCroix[r][pr] !== undefined)
+        risquePrioriteCroix[r][pr]++;
+    }
+    let jalonsTotal = 0;
+    let jalonsCompletes = 0;
+    for (const p of projects) {
+      for (const j of p.jalons || []) {
+        jalonsTotal++;
+        if (["compl\xE9t\xE9", "annul\xE9"].includes(j.statut)) jalonsCompletes++;
+      }
+    }
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const modifiedLast30 = projects.filter((p) => p.derniere_modification && new Date(p.derniere_modification) >= thirtyDaysAgo).length;
+    const tauxAchevement = total > 0 ? Math.round(termines / total * 100) : 0;
     return {
       total,
       enCours,
@@ -1327,230 +1363,269 @@
       impactSysteme,
       jalonsBientot,
       jalonsRetard,
+      jalonsTotal,
+      jalonsCompletes,
       recentlyModified,
       overdueByProject,
       byDirection,
       byType,
       byJuridiction,
+      byReglement,
       jalonsByMonth,
       monthLabels,
-      completionByDir
+      completionByDir,
+      risquePrioriteCroix,
+      modifiedLast30,
+      tauxAchevement
     };
   }
   function renderDashboard(projects, currentUser) {
     const kpi = computeKPIs(projects);
     const top5Juridiction = Object.entries(kpi.byJuridiction).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const recentList = [...kpi.recentlyModified].sort((a, b) => new Date(b.derniere_modification) - new Date(a.derniere_modification)).slice(0, 10);
+    const top8Reglements = Object.entries(kpi.byReglement).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const recentList = [...kpi.recentlyModified].sort((a, b) => new Date(b.derniere_modification) - new Date(a.derniere_modification)).slice(0, 8);
+    const alerteTotal = kpi.prioriteElevee + kpi.risqueEleve;
+    const shortDir = (d) => d.replace("Direction des ", "Dir.\u00a0").replace("Direction de la ", "Dir.\u00a0").replace("Direction de l'", "Dir.\u00a0");
     return `
     <div class="animate-fadeIn">
-      <!-- Page title -->
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord \u2014 Reddition de comptes</h1>
-        <p class="text-sm text-gray-500 mt-1">${projects.length} projets r\xE9glementaires \u2022 Mis \xE0 jour ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" })}</p>
-      </div>
-
-      <!-- KPI Cards Row -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        ${kpiCard("Total", kpi.total, "bg-blue-50 border-blue-100", "text-blue-700", iconStack())}
-        ${kpiCard("En cours", kpi.enCours, "bg-blue-50 border-blue-100", "text-blue-700", iconClock())}
-        ${kpiCard("Priorit\xE9 \xE9lev\xE9e", kpi.prioriteElevee, "bg-red-50 border-red-100", "text-red-700", iconAlert())}
-        ${kpiCard("Risque \xE9lev\xE9", kpi.risqueEleve, "bg-orange-50 border-orange-100", "text-orange-700", iconShield())}
-        ${kpiCard("Jalons \xE0 venir", kpi.jalonsBientot, "bg-teal-50 border-teal-100", "text-teal-700", iconCalendar())}
-        ${kpiCard("Impact syst\xE8me", kpi.impactSysteme, "bg-purple-50 border-purple-100", "text-purple-700", iconCog())}
-      </div>
-
-      <!-- Secondary KPIs -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-green-600">${kpi.termines}</div>
-          <div class="text-xs text-gray-500 mt-1">Termin\xE9s</div>
+      <div class="mb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Tableau de bord \u2014 Reddition de comptes</h1>
+          <p class="text-sm text-gray-500 mt-1">${projects.length} projets r\xE9glementaires \u2022 Mis \xE0 jour ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" })}</p>
         </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-amber-600">${kpi.enAttente}</div>
-          <div class="text-xs text-gray-500 mt-1">En attente</div>
-        </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-gray-500">${kpi.clos}</div>
-          <div class="text-xs text-gray-500 mt-1">Clos</div>
-        </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-red-600">${kpi.jalonsRetard}</div>
-          <div class="text-xs text-gray-500 mt-1">Jalons en retard</div>
+        <div class="flex flex-wrap gap-1.5 shrink-0">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">\u25cf En cours\u00a0${kpi.enCours}</span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">\u25cf En attente\u00a0${kpi.enAttente}</span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">\u25cf Termin\xE9s\u00a0${kpi.termines}</span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">\u25cf Clos\u00a0${kpi.clos}</span>
         </div>
       </div>
-
-      <!-- Charts Row 1 -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Portefeuille</p>
+              <p class="text-3xl font-bold text-gray-900 mt-1">${kpi.total}</p>
+              <p class="text-xs text-gray-400 mt-0.5">projets r\xE9glementaires</p>
+            </div>
+            <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shrink-0">${iconStack()}</div>
+          </div>
+          <div class="space-y-2">
+            ${kpiBigStatusRow("En cours", kpi.enCours, kpi.total, "#3b82f6")}
+            ${kpiBigStatusRow("En attente", kpi.enAttente, kpi.total, "#f59e0b")}
+            ${kpiBigStatusRow("Termin\xE9s", kpi.termines, kpi.total, "#16a34a")}
+          </div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Avancement global</p>
+              <p class="text-3xl font-bold text-green-600 mt-1">${kpi.tauxAchevement}%</p>
+              <p class="text-xs text-gray-400 mt-0.5">${kpi.termines} termin\xE9${kpi.termines !== 1 ? "s" : ""} sur ${kpi.total}</p>
+            </div>
+            <div class="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center text-green-600 shrink-0">${iconCheckCircle()}</div>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-3 mb-3">
+            <div class="bg-green-500 h-3 rounded-full transition-all" style="width:${kpi.tauxAchevement}%"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-1 text-center">
+            <div><p class="text-sm font-bold text-blue-600">${kpi.enCours}</p><p class="text-xs text-gray-400">Actifs</p></div>
+            <div><p class="text-sm font-bold text-amber-600">${kpi.enAttente}</p><p class="text-xs text-gray-400">Attente</p></div>
+            <div><p class="text-sm font-bold text-gray-400">${kpi.clos}</p><p class="text-xs text-gray-400">Clos</p></div>
+          </div>
+        </div>
+        <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-xs font-semibold text-red-400 uppercase tracking-wider">Vigilance</p>
+              <p class="text-3xl font-bold text-red-600 mt-1">${alerteTotal}</p>
+              <p class="text-xs text-gray-400 mt-0.5">indicateurs \xE0 surveiller</p>
+            </div>
+            <div class="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center text-red-600 shrink-0">${iconAlert()}</div>
+          </div>
+          <div class="space-y-2">
+            ${kpiAlertRow("Priorit\xE9 \xE9lev\xE9e", kpi.prioriteElevee, "bg-red-400", "text-red-600")}
+            ${kpiAlertRow("Risque \xE9lev\xE9", kpi.risqueEleve, "bg-orange-400", "text-orange-600")}
+            ${kpiAlertRow("Impact syst\xE8me", kpi.impactSysteme, "bg-purple-400", "text-purple-600")}
+          </div>
+        </div>
+        <div class="bg-white border border-amber-100 rounded-xl p-5 shadow-sm">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-xs font-semibold text-amber-500 uppercase tracking-wider">Jalons</p>
+              <p class="text-3xl font-bold text-amber-600 mt-1">${kpi.jalonsTotal}</p>
+              <p class="text-xs text-gray-400 mt-0.5">jalons au total</p>
+            </div>
+            <div class="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 shrink-0">${iconCalendar()}</div>
+          </div>
+          <div class="space-y-2">
+            ${kpiAlertRow("En retard", kpi.jalonsRetard, "bg-red-500", "text-red-600")}
+            ${kpiAlertRow("\xC0 venir (30\u00a0j)", kpi.jalonsBientot, "bg-teal-400", "text-teal-600")}
+            ${kpiAlertRow("Compl\xE9t\xE9s", kpi.jalonsCompletes, "bg-green-400", "text-green-600")}
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+        ${miniKpi("Modifi\xE9s\u00a07\u00a0j", kpi.recentlyModified.length, "text-blue-600")}
+        ${miniKpi("Modifi\xE9s\u00a030\u00a0j", kpi.modifiedLast30, "text-indigo-600")}
+        ${miniKpi("Impact syst.", kpi.impactSysteme, "text-purple-600")}
+        ${miniKpi("Jalons retard", kpi.jalonsRetard, "text-red-600")}
+        ${miniKpi("Jalons \xE0 venir", kpi.jalonsBientot, "text-teal-600")}
+        ${miniKpi("Directions", Object.keys(kpi.byDirection).length, "text-gray-600")}
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-700 mb-3">R\xE9partition par statut</h3>
-          <div class="relative h-48">
-            <canvas id="chart-statuts"></canvas>
-          </div>
+          <div class="relative h-48"><canvas id="chart-statuts"></canvas></div>
         </div>
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-700 mb-3">R\xE9partition par priorit\xE9</h3>
-          <div class="relative h-48">
-            <canvas id="chart-priorites"></canvas>
-          </div>
+          <div class="relative h-48"><canvas id="chart-priorites"></canvas></div>
         </div>
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-700 mb-3">R\xE9partition par risque</h3>
-          <div class="relative h-48">
-            <canvas id="chart-risques"></canvas>
-          </div>
+          <div class="relative h-48"><canvas id="chart-risques"></canvas></div>
         </div>
       </div>
-
-      <!-- Charts Row 2 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-700 mb-3">Projets par direction principale</h3>
-          <div class="relative h-64">
-            <canvas id="chart-directions"></canvas>
-          </div>
+          <div class="relative h-64"><canvas id="chart-directions"></canvas></div>
         </div>
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Jalons \xE0 venir (6 prochains mois)</h3>
-          <div class="relative h-64">
-            <canvas id="chart-jalons"></canvas>
-          </div>
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Jalons \xE0 venir \u2014 6 prochains mois</h3>
+          <div class="relative h-64"><canvas id="chart-jalons"></canvas></div>
         </div>
       </div>
-
-      <!-- Tables Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <!-- Overdue jalons -->
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div class="px-5 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700">Projets avec jalons en retard</h3>
-          </div>
-          ${kpi.overdueByProject.length === 0 ? '<p class="text-sm text-gray-400 px-5 py-4">Aucun jalon en retard.</p>' : `<div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead><tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                  <th class="px-4 py-2 text-left">Code</th>
-                  <th class="px-4 py-2 text-left">Titre</th>
-                  <th class="px-4 py-2 text-center">Retard</th>
-                  <th class="px-4 py-2 text-right">Action</th>
-                </tr></thead>
-                <tbody class="divide-y divide-gray-100">
-                  ${kpi.overdueByProject.map(({ project: p, count }) => `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                      <td class="px-4 py-2.5"><span class="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-mono font-bold">SPR-${String(p.code).padStart(3, "0")}</span></td>
-                      <td class="px-4 py-2.5 max-w-[180px] truncate text-gray-800 font-medium">${escapeHtml(p.titre)}</td>
-                      <td class="px-4 py-2.5 text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-bold">${count}</span></td>
-                      <td class="px-4 py-2.5 text-right"><a href="#project-${p.code}" class="text-blue-600 hover:underline text-xs font-medium">Voir \u2192</a></td>
-                    </tr>
-                  `).join("")}
-                </tbody>
-              </table>
-            </div>`}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">R\xE9partition par type de projet</h3>
+          <div class="relative h-64"><canvas id="chart-types"></canvas></div>
         </div>
-
-        <!-- Recently modified -->
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div class="px-5 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700">Projets modifi\xE9s r\xE9cemment</h3>
-          </div>
-          ${recentList.length === 0 ? '<p class="text-sm text-gray-400 px-5 py-4">Aucune modification dans les 7 derniers jours.</p>' : `<div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead><tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                  <th class="px-4 py-2 text-left">Titre</th>
-                  <th class="px-4 py-2 text-center">Version</th>
-                  <th class="px-4 py-2 text-right">Date</th>
-                </tr></thead>
-                <tbody class="divide-y divide-gray-100">
-                  ${recentList.map((p) => `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                      <td class="px-4 py-2.5 max-w-[200px] truncate"><a href="#project-${p.code}" class="text-blue-600 hover:underline font-medium">${escapeHtml(p.titre)}</a></td>
-                      <td class="px-4 py-2.5 text-center text-xs text-gray-500">v${p.version || 1}</td>
-                      <td class="px-4 py-2.5 text-right text-xs text-gray-500">${formatDate(p.derniere_modification)}</td>
-                    </tr>
-                  `).join("")}
-                </tbody>
-              </table>
-            </div>`}
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Top r\xE8glements &amp; initiatives</h3>
+          <div class="relative h-64"><canvas id="chart-reglements"></canvas></div>
         </div>
       </div>
-
-      <!-- Bottom analytics row -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <!-- By type -->
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div class="px-5 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700">Projets par type</h3>
-          </div>
-          <div class="divide-y divide-gray-100">
-            ${Object.entries(kpi.byType).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
-              <div class="flex items-center justify-between px-5 py-2.5">
-                <span class="text-sm text-gray-700 truncate">${escapeHtml(type)}</span>
-                <div class="flex items-center gap-2 shrink-0 ml-2">
-                  <div class="w-20 bg-gray-100 rounded-full h-1.5">
-                    <div class="bg-blue-500 h-1.5 rounded-full" style="width:${Math.round(count / kpi.total * 100)}%"></div>
-                  </div>
-                  <span class="text-xs font-bold text-gray-600 w-6 text-right">${count}</span>
-                </div>
-              </div>
-            `).join("")}
-          </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Taux de compl\xE9tion par direction</h3>
+          <div class="relative h-72"><canvas id="chart-completion"></canvas></div>
         </div>
-
-        <!-- Top 5 juridictions -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Croisement risque \xD7 priorit\xE9</h3>
+          <div class="relative h-72"><canvas id="chart-matrice"></canvas></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
         <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div class="px-5 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700">Top 5 juridictions</h3>
+          <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-gray-700">Jalons en retard par projet</h3>
+            ${kpi.jalonsRetard > 0 ? `<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">${kpi.jalonsRetard}</span>` : ""}
           </div>
+          ${kpi.overdueByProject.length === 0 ? '<p class="text-sm text-gray-400 px-5 py-4">\u2713 Aucun jalon en retard.</p>' : `<div class="overflow-x-auto"><table class="w-full text-sm">
+            <thead><tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-4 py-2 text-left">Code</th><th class="px-4 py-2 text-left">Titre</th><th class="px-4 py-2 text-center">Retards</th><th class="px-4 py-2 text-right"></th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${kpi.overdueByProject.map(({ project: p, count }) => `
+                <tr class="hover:bg-gray-50 transition-colors">
+                  <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-mono font-bold">SPR-${String(p.code).padStart(3, "0")}</span></td>
+                  <td class="px-4 py-2.5 max-w-xs truncate text-gray-800 font-medium">${escapeHtml(p.titre)}</td>
+                  <td class="px-4 py-2.5 text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-bold">${count}</span></td>
+                  <td class="px-4 py-2.5 text-right"><a href="#project-${p.code}" class="text-blue-600 hover:underline text-xs font-medium">Voir \u2192</a></td>
+                </tr>`).join("")}
+            </tbody></table></div>`}
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-gray-700">Modifications r\xE9centes</h3>
+            <span class="text-xs text-gray-400">${kpi.modifiedLast30} ce mois-ci</span>
+          </div>
+          ${recentList.length === 0 ? '<p class="text-sm text-gray-400 px-5 py-4">Aucune modification r\xE9cente.</p>' : `<div class="overflow-x-auto"><table class="w-full text-sm">
+            <thead><tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-4 py-2 text-left">Projet</th><th class="px-4 py-2 text-center">Statut</th><th class="px-4 py-2 text-center">v.</th><th class="px-4 py-2 text-right">Date</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${recentList.map((p) => `
+                <tr class="hover:bg-gray-50 transition-colors">
+                  <td class="px-4 py-2.5 max-w-xs truncate"><a href="#project-${p.code}" class="text-blue-600 hover:underline font-medium text-xs">${escapeHtml(p.titre)}</a></td>
+                  <td class="px-4 py-2.5 text-center"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${getStatusBadgeClass(p.statut)}">${escapeHtml(p.statut)}</span></td>
+                  <td class="px-4 py-2.5 text-center text-xs text-gray-500">v${p.version || 1}</td>
+                  <td class="px-4 py-2.5 text-right text-xs text-gray-500 whitespace-nowrap">${formatDate(p.derniere_modification)}</td>
+                </tr>`).join("")}
+            </tbody></table></div>`}
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100"><h3 class="text-sm font-semibold text-gray-700">Top juridictions</h3></div>
           <div class="divide-y divide-gray-100">
             ${top5Juridiction.map(([jur, count]) => `
-              <div class="flex items-center justify-between px-5 py-2.5">
-                <span class="text-sm text-gray-700 truncate">${escapeHtml(jur)}</span>
-                <div class="flex items-center gap-2 shrink-0 ml-2">
-                  <div class="w-20 bg-gray-100 rounded-full h-1.5">
-                    <div class="bg-teal-500 h-1.5 rounded-full" style="width:${Math.round(count / kpi.total * 100)}%"></div>
-                  </div>
-                  <span class="text-xs font-bold text-gray-600 w-6 text-right">${count}</span>
-                </div>
-              </div>
-            `).join("")}
+              <div class="flex items-center gap-3 px-5 py-2.5">
+                <span class="text-sm text-gray-700 flex-1 truncate">${escapeHtml(jur)}</span>
+                <div class="w-20 bg-gray-100 rounded-full h-1.5 shrink-0"><div class="bg-teal-500 h-1.5 rounded-full" style="width:${Math.round(count / kpi.total * 100)}%"></div></div>
+                <span class="text-xs font-bold text-gray-600 w-5 text-right shrink-0">${count}</span>
+              </div>`).join("")}
           </div>
         </div>
-
-        <!-- Completion rate by direction -->
         <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div class="px-5 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700">Taux de compl\xE9tion par direction</h3>
+          <div class="px-5 py-4 border-b border-gray-100"><h3 class="text-sm font-semibold text-gray-700">Top r\xE8glements</h3></div>
+          <div class="divide-y divide-gray-100">
+            ${top8Reglements.slice(0, 5).map(([reg, count]) => `
+              <div class="flex items-center gap-3 px-5 py-2.5">
+                <span class="text-sm text-gray-700 font-mono flex-1 truncate">${escapeHtml(reg)}</span>
+                <div class="w-20 bg-gray-100 rounded-full h-1.5 shrink-0"><div class="bg-indigo-500 h-1.5 rounded-full" style="width:${Math.round(count / kpi.total * 100)}%"></div></div>
+                <span class="text-xs font-bold text-gray-600 w-5 text-right shrink-0">${count}</span>
+              </div>`).join("")}
           </div>
-          <div class="divide-y divide-gray-100 overflow-y-auto max-h-72">
-            ${Object.entries(kpi.completionByDir).sort((a, b) => b[1].total - a[1].total).map(([dir, { total, done }]) => {
-      const pct = total > 0 ? Math.round(done / total * 100) : 0;
-      const shortDir = dir.replace("Direction des ", "Dir. ").replace("Direction de la ", "Dir. ").replace("Direction de l'", "Dir. ");
-      return `
-                  <div class="px-5 py-2.5">
-                    <div class="flex justify-between text-xs mb-1">
-                      <span class="text-gray-700 truncate max-w-[180px]" title="${escapeHtml(dir)}">${escapeHtml(shortDir)}</span>
-                      <span class="text-gray-500 font-medium shrink-0 ml-1">${done}/${total} (${pct}%)</span>
-                    </div>
-                    <div class="w-full bg-gray-100 rounded-full h-1.5">
-                      <div class="bg-green-500 h-1.5 rounded-full transition-all" style="width:${pct}%"></div>
-                    </div>
-                  </div>
-                `;
-    }).join("")}
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100"><h3 class="text-sm font-semibold text-gray-700">Compl\xE9tion par direction</h3></div>
+          <div class="divide-y divide-gray-100 overflow-y-auto max-h-52">
+            ${Object.entries(kpi.completionByDir).sort((a, b) => b[1].total - a[1].total).map(([dir, { total: t, done }]) => {
+              const pct = t > 0 ? Math.round(done / t * 100) : 0;
+              return `<div class="px-5 py-2.5">
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-gray-700 truncate max-w-[150px]" title="${escapeHtml(dir)}">${escapeHtml(shortDir(dir))}</span>
+                  <span class="text-gray-500 font-medium ml-1 shrink-0">${done}/${t} (${pct}%)</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-green-500 h-1.5 rounded-full" style="width:${pct}%"></div></div>
+              </div>`;
+            }).join("")}
           </div>
         </div>
       </div>
     </div>
   `;
   }
-  function kpiCard(label, value, bgClass, textClass, icon) {
-    return `
-    <div class="bg-white border ${bgClass} rounded-xl p-4 shadow-sm flex flex-col items-center text-center gap-2">
-      <div class="w-10 h-10 rounded-lg ${bgClass} flex items-center justify-center ${textClass}">
-        ${icon}
+  function kpiBigStatusRow(label, count, total, color) {
+    const pct = total > 0 ? Math.round(count / total * 100) : 0;
+    return `<div class="flex items-center gap-2 text-xs">
+      <span class="text-gray-500 w-16 shrink-0">${label}</span>
+      <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+        <div class="h-1.5 rounded-full" style="width:${pct}%;background:${color}"></div>
       </div>
-      <div class="text-2xl font-bold ${textClass}">${value}</div>
-      <div class="text-xs text-gray-500 leading-tight">${label}</div>
-    </div>
-  `;
+      <span class="text-gray-700 font-semibold w-14 text-right shrink-0">${count}\u00a0(${pct}%)</span>
+    </div>`;
+  }
+  function kpiAlertRow(label, count, dotClass, textClass) {
+    return `<div class="flex items-center justify-between text-xs">
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full ${dotClass} shrink-0"></span>
+        <span class="text-gray-600">${label}</span>
+      </div>
+      <span class="font-bold ${textClass}">${count}</span>
+    </div>`;
+  }
+  function miniKpi(label, value, textClass) {
+    return `<div class="bg-white border border-gray-200 rounded-lg p-3 text-center">
+      <div class="text-xl font-bold ${textClass}">${value}</div>
+      <div class="text-xs text-gray-400 mt-0.5 leading-tight">${label}</div>
+    </div>`;
+  }
+  function iconCheckCircle() {
+    return `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
   }
   function iconStack() {
     return `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`;
@@ -1695,6 +1770,102 @@
         }
       });
     }
+    // Chart: types de projets (barres horizontales)
+    const ctxTypes = document.getElementById("chart-types");
+    if (ctxTypes) {
+      const typesSorted = Object.entries(kpi.byType).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      const typeColors = [CHART_COLORS.blue, CHART_COLORS.indigo, CHART_COLORS.purple, CHART_COLORS.teal, CHART_COLORS.cyan, CHART_COLORS.orange, CHART_COLORS.amber, CHART_COLORS.green];
+      window.sprCharts["types"] = new Chart(ctxTypes, {
+        type: "bar",
+        data: {
+          labels: typesSorted.map(([t]) => t.length > 30 ? t.substring(0, 28) + "\u2026" : t),
+          datasets: [{ data: typesSorted.map(([, c]) => c), backgroundColor: typeColors.slice(0, typesSorted.length), borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: "#f1f5f9" } },
+            y: { ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+    // Chart: top règlements (barres horizontales)
+    const ctxReglements = document.getElementById("chart-reglements");
+    if (ctxReglements) {
+      const regSorted = Object.entries(kpi.byReglement).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      window.sprCharts["reglements"] = new Chart(ctxReglements, {
+        type: "bar",
+        data: {
+          labels: regSorted.map(([r]) => r),
+          datasets: [{ data: regSorted.map(([, c]) => c), backgroundColor: CHART_COLORS.indigo, borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: "#f1f5f9" } },
+            y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+    // Chart: taux de complétion par direction (barres horizontales)
+    const ctxCompletion = document.getElementById("chart-completion");
+    if (ctxCompletion) {
+      const dirsSorted = Object.entries(kpi.completionByDir).sort((a, b) => b[1].total - a[1].total).slice(0, 8);
+      const shortDirFn = (d) => d.replace("Direction des ", "Dir. ").replace("Direction de la ", "Dir. ").replace("Direction de l'", "Dir. ").substring(0, 22);
+      window.sprCharts["completion"] = new Chart(ctxCompletion, {
+        type: "bar",
+        data: {
+          labels: dirsSorted.map(([d]) => shortDirFn(d)),
+          datasets: [
+            { label: "Termin\xE9s", data: dirsSorted.map(([, v]) => v.done), backgroundColor: CHART_COLORS.green, borderRadius: 4, stack: "s" },
+            { label: "En cours / attente", data: dirsSorted.map(([, v]) => v.total - v.done), backgroundColor: CHART_COLORS.blue, borderRadius: 4, stack: "s" }
+          ]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } } },
+          scales: {
+            x: { beginAtZero: true, stacked: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: "#f1f5f9" } },
+            y: { stacked: true, ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+    // Chart: croisement risque × priorité (barres groupées)
+    const ctxMatrice = document.getElementById("chart-matrice");
+    if (ctxMatrice) {
+      const niveaux = ["\xE9lev\xE9", "moyen", "faible"];
+      window.sprCharts["matrice"] = new Chart(ctxMatrice, {
+        type: "bar",
+        data: {
+          labels: ["Priorit\xE9 \xE9lev\xE9e", "Priorit\xE9 moyenne", "Priorit\xE9 faible"],
+          datasets: [
+            { label: "Risque \xE9lev\xE9",  data: niveaux.map((pr) => kpi.risquePrioriteCroix["\xE9lev\xE9"][pr]),  backgroundColor: CHART_COLORS.red,   borderRadius: 4 },
+            { label: "Risque moyen",  data: niveaux.map((pr) => kpi.risquePrioriteCroix["moyen"][pr]),  backgroundColor: CHART_COLORS.amber, borderRadius: 4 },
+            { label: "Risque faible", data: niveaux.map((pr) => kpi.risquePrioriteCroix["faible"][pr]), backgroundColor: CHART_COLORS.green, borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: "#f1f5f9" } },
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
   }
 
   // js/views/projects.js
@@ -1711,30 +1882,76 @@
     const ctx = chartContainer.getContext("2d");
     if (!ctx)
       return;
-    if (window.sprProjectsStatusChart) {
-      window.sprProjectsStatusChart.data.labels = statuses;
-      window.sprProjectsStatusChart.data.datasets[0].data = counts;
-      window.sprProjectsStatusChart.update();
-      return;
-    }
-    window.sprProjectsStatusChart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: statuses,
-        datasets: [{
-          data: counts,
-          backgroundColor: ["#3b82f6", "#16a34a", "#d97706", "#6b7280"],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "bottom", labels: { boxWidth: 10, padding: 12, color: "#374151" } }
+    try {
+      // Si toutes les valeurs sont 0, afficher un graphique avec une seule tranche "Aucun projet"
+      const totalCount = counts.reduce((sum, count) => sum + count, 0);
+      const displayStatuses = totalCount === 0 ? ["Aucun projet"] : statuses;
+      const displayCounts = totalCount === 0 ? [1] : counts;
+      const displayColors = totalCount === 0 ? ["#9ca3af"] : ["#3b82f6", "#16a34a", "#d97706", "#6b7280"];
+
+      if (window.sprProjectsStatusChart) {
+        if (!document.contains(window.sprProjectsStatusChart.canvas)) {
+          // Canvas was replaced in the DOM — destroy the stale chart instance
+          try { window.sprProjectsStatusChart.destroy(); } catch (e) {}
+          window.sprProjectsStatusChart = null;
+        } else {
+          window.sprProjectsStatusChart.data.labels = displayStatuses;
+          window.sprProjectsStatusChart.data.datasets[0].data = displayCounts;
+          window.sprProjectsStatusChart.data.datasets[0].backgroundColor = displayColors;
+          window.sprProjectsStatusChart.update();
+          return;
         }
       }
-    });
+      window.sprProjectsStatusChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: displayStatuses,
+          datasets: [{
+            data: displayCounts,
+            backgroundColor: displayColors,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 10, padding: 12, color: "#374151" } }
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Erreur lors du rendu du graphique projects-stats-chart:", error);
+      // Essayer de recréer le graphique en cas d'erreur
+      if (window.sprProjectsStatusChart) {
+        try {
+          window.sprProjectsStatusChart.destroy();
+        } catch (e) {}
+        window.sprProjectsStatusChart = null;
+      }
+      try {
+        window.sprProjectsStatusChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["Erreur"],
+            datasets: [{
+              data: [1],
+              backgroundColor: ["#ef4444"],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom", labels: { boxWidth: 10, padding: 12, color: "#374151" } }
+            }
+          }
+        });
+      } catch (retryError) {
+        console.error("Erreur lors de la recréation du graphique:", retryError);
+      }
+    }
   }
   var _currentView = localStorage.getItem("spr.projects.view") || "cards";
   var _currentSort = localStorage.getItem("spr.projects.sort") || "code";
@@ -1817,13 +2034,18 @@
       { value: "", label: "Tous les types" },
       ...types.map((t) => ({ value: t, label: t }))
     ], filters.type || "")}
-            ${filterSelect("proj-sort", "Trier par", [
-      { value: "code", label: "Code" },
-      { value: "titre", label: "Titre" },
-      { value: "statut", label: "Statut" },
-      { value: "priorite", label: "Priorit\xE9" },
-      { value: "date", label: "Date modification" }
-    ], _currentSort)}
+            <div class="relative">
+              <svg class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9M3 12h5"/>
+              </svg>
+              <select id="proj-sort" title="Trier par" class="pl-7 pr-2.5 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white w-full">
+                <option value="code" ${_currentSort === "code" ? "selected" : ""}>Code</option>
+                <option value="titre" ${_currentSort === "titre" ? "selected" : ""}>Titre</option>
+                <option value="statut" ${_currentSort === "statut" ? "selected" : ""}>Statut</option>
+                <option value="priorite" ${_currentSort === "priorite" ? "selected" : ""}>Priorit\xE9</option>
+                <option value="date" ${_currentSort === "date" ? "selected" : ""}>Date modification</option>
+              </select>
+            </div>
           </div>
           <!-- Active filters badges -->
           <div id="active-filters" class="flex flex-wrap gap-1.5">
@@ -2599,13 +2821,6 @@
   function renderGeneralTab(data) {
     return `
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <!-- Main content -->
-      <div class="lg:col-span-2 space-y-5">
-        ${textBlock("Description", data.description)}
-        ${textBlock("Enjeux", data.enjeux)}
-        ${textBlock("Discussion", data.discussion)}
-      </div>
-
       <!-- Sidebar metadata -->
       <div class="space-y-4">
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -2644,6 +2859,13 @@
           ${data.impact_systeme && data.impact_description ? `<p class="text-sm text-gray-600 mt-2">${escapeHtml(data.impact_description)}</p>` : ""}
         </div>
       </div>
+
+      <!-- Main content -->
+      <div class="lg:col-span-2 space-y-5">
+        ${textBlock("Description", data.description)}
+        ${textBlock("Enjeux", data.enjeux)}
+        ${textBlock("Discussion", data.discussion)}
+      </div>
     </div>
   `;
   }
@@ -2679,9 +2901,11 @@
     if (!people.length)
       return "";
     return `
-    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <h3 class="text-sm font-semibold text-gray-700 mb-4">${escapeHtml(title)}</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div class="px-5 py-4 border-b border-gray-100">
+        <h3 class="text-sm font-semibold text-gray-700">${escapeHtml(title)}</h3>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-5">
         ${people.map((p) => `
           <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
             <div class="w-10 h-10 rounded-full overflow-hidden shrink-0">
@@ -3556,7 +3780,7 @@
         version_base: entry.version
       };
       showToast(`Version ${entry.version} restaur\xE9e comme brouillon.`, "success");
-      navigate(`#project-${code}`);
+      navigate2(`#project-${code}`);
     });
   }
   function removeArrayItem(field, index) {
@@ -4100,59 +4324,72 @@
       columns: [
         {
           stack: [
-            { columns: [
-              {
-                table: { widths: [28], body: [[
-                  { text: "SPR", bold: true, fontSize: 10, color: "white", alignment: "center", margin: [0, 6, 0, 6] }
-                ]] },
-                layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => C.blue },
-                width: 34,
-                margin: [0, 0, 8, 0]
-              },
-              { stack: [
-                { text: `SPR-${code}`, fontSize: 13, bold: true, color: C.blue },
+            {
+              columns: [
                 {
-                  text: `${safe(data.type_projet)}  \xB7  ${safe(data.reglement)}  \xB7  Version ${data.version || 1}`,
-                  fontSize: 8,
-                  color: C.gray500,
-                  margin: [0, 2, 0, 0]
+                  table: { widths: [40], body: [[
+                    { text: "SPR", bold: true, fontSize: 10, color: "white", alignment: "center", margin: [0, 6, 0, 6] }
+                  ]] },
+                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => C.blue },
+                  width: 48,
+                  margin: [0, 0, 32, 0]
+                },
+                {
+                  stack: [
+                    { text: `SPR-${code}`, fontSize: 13, bold: true, color: C.blue },
+                    {
+                      text: `${safe(data.type_projet)}  ·  ${safe(data.reglement)}  ·  Version ${data.version || 1}`,
+                      fontSize: 8,
+                      color: C.gray500,
+                      margin: [0, 2, 0, 0]
+                    }
+                  ]
                 }
-              ] }
-            ], margin: [0, 0, 0, 8] },
+              ],
+              columnGap: 24,
+              margin: [0, 0, 0, 8]
+            },
             { text: data.titre || "", fontSize: 20, bold: true, color: C.gray900, margin: [0, 0, 0, 8] },
-            { columns: [
-              {
-                text: (data.statut || "").toUpperCase(),
-                fontSize: 8,
-                bold: true,
-                color: statusColor[data.statut] || C.gray700,
-                width: "auto",
-                margin: [0, 0, 10, 0]
-              },
-              {
-                text: `Priorit\xE9 : ${safe(data.priorite)}`,
-                fontSize: 8,
-                color: C.gray700,
-                width: "auto",
-                margin: [0, 0, 10, 0]
-              },
-              {
-                text: `Risque : ${safe(data.niveau_risque)}`,
-                fontSize: 8,
-                bold: true,
-                color: riskColor[data.niveau_risque] || C.gray700,
-                width: "auto"
-              }
-            ] }
+            {
+              columns: [
+                {
+                  text: (data.statut || "").toUpperCase(),
+                  fontSize: 8,
+                  bold: true,
+                  color: statusColor[data.statut] || C.gray700,
+                  width: "auto",
+                  margin: [0, 0, 10, 0]
+                },
+                {
+                  text: `Priorit\xE9 : ${safe(data.priorite)}`,
+                  fontSize: 8,
+                  color: C.gray700,
+                  width: "auto",
+                  margin: [0, 0, 10, 0]
+                },
+                {
+                  text: `Risque : ${safe(data.niveau_risque)}`,
+                  fontSize: 8,
+                  bold: true,
+                  color: riskColor[data.niveau_risque] || C.gray700,
+                  width: "auto"
+                }
+              ]
+            }
           ],
           width: "*"
         },
-        { stack: [
-          { text: "G\xE9n\xE9r\xE9 le", fontSize: 7, color: C.gray400, alignment: "right" },
-          { text: now, fontSize: 8, bold: true, color: C.gray700, alignment: "right" }
-        ], width: 110, margin: [0, 4, 0, 0] }
+        {
+          stack: [
+            { text: "G\xE9n\xE9r\xE9 le", fontSize: 7, color: C.gray400, alignment: "right" },
+            { text: now, fontSize: 8, bold: true, color: C.gray700, alignment: "right" }
+          ],
+          width: 110,
+          margin: [0, 4, 0, 0]
+        }
       ]
     });
+
     content.push({ canvas: [{ type: "line", x1: 0, y1: 4, x2: 515, y2: 4, lineWidth: 2, lineColor: C.blue }], margin: [0, 4, 0, 0] });
     content.push(secHdr("INFORMATIONS G\xC9N\xC9RALES"));
     const grid = fieldGrid([
@@ -4419,12 +4656,12 @@
       fieldRow("Statut", data.statut),
       fieldRow("Priorit\xE9", data.priorite),
       fieldRow("Niveau de risque", data.niveau_risque),
-      fieldRow("Type", data.type),
-      fieldRow("R\xE8glement / Initiative", data.reglement_initiative),
+      fieldRow("Type de projet", data.type_projet || data.type),
+      fieldRow("R\xE8glement / Initiative", data.reglement || data.reglement_initiative),
       fieldRow("Direction principale", data.direction_principale),
-      fieldRow("Direction responsable", data.direction_responsable),
-      fieldRow("Juridiction principale", data.juridiction_principale),
-      fieldRow("Lois applicables", data.loi),
+      fieldRow("Directions responsables", Array.isArray(data.direction_responsable) ? data.direction_responsable.join(", ") : data.direction_responsable),
+      fieldRow("Juridiction principale", Array.isArray(data.juridiction_principale) ? data.juridiction_principale.join(", ") : data.juridiction_principale),
+      fieldRow("Lois applicables", Array.isArray(data.loi) ? data.loi.join(", ") : data.loi),
       fieldRow("Version", data.version),
       fieldRow("Phase actuelle", data.phase_actuelle),
       fieldRow("Date de d\xE9but", data.date_debut),
@@ -4443,10 +4680,25 @@
       children.push(subLabel("Port\xE9e"));
       children.push(bodyP(data.portee));
     }
-    children.push(spacer());
+    if (data.enjeux) {
+      children.push(subLabel("Enjeux"));
+      children.push(bodyP(data.enjeux));
+    }
+    if (data.discussion) {
+      children.push(subLabel("Discussion"));
+      children.push(bodyP(data.discussion));
+    }
+    if (data.impact_systeme || data.impact_description) {
+      children.push(secHeading("Impact syst\xE8me"));
+      children.push(bodyP(data.impact_systeme ? "Impact identifié" : "Aucun impact identifié"));
+      if (data.impact_description) {
+        children.push(bodyP(data.impact_description));
+      }
+      children.push(spacer());
+    }
     const systemes = Array.isArray(data.systemes_touches) ? data.systemes_touches : data.systemes_touches ? [data.systemes_touches] : [];
     if (systemes.length) {
-      children.push(secHeading("Impact syst\xE8me"));
+      children.push(secHeading("Syst\xE8mes touch\xE9s"));
       children.push(dataTable(["Syst\xE8me touch\xE9"], systemes.map((s) => [s])));
       children.push(spacer());
     }
@@ -4459,6 +4711,47 @@
       ));
       children.push(spacer());
     }
+
+    const ressources = Array.isArray(data.Ressources_associees) ? data.Ressources_associees : [];
+    if (ressources.length) {
+      children.push(secHeading("Ressources associ\xE9es"));
+      children.push(dataTable(
+        ["Nom", "Pr\xE9nom", "R\xF4le", "Courriel"],
+        ressources.map((p) => [p.nom, p.prenom, p.role, p.email])
+      ));
+      children.push(spacer());
+    }
+
+    const soutien = Array.isArray(data.soutien_juridique) ? data.soutien_juridique : [];
+    if (soutien.length) {
+      children.push(secHeading("Soutien juridique"));
+      children.push(dataTable(
+        ["Nom", "Pr\xE9nom", "R\xF4le", "Courriel"],
+        soutien.map((p) => [p.nom, p.prenom, p.role, p.email])
+      ));
+      children.push(spacer());
+    }
+
+    const comite = Array.isArray(data.Comite_ACVM) ? data.Comite_ACVM : [];
+    if (comite.length) {
+      children.push(secHeading("Comit\xE9 ACVM"));
+      children.push(dataTable(
+        ["Pr\xE9nom", "Nom", "Courriel", "Institution"],
+        comite.map((m) => [m.prenom, m.nom, m.email, m.institution])
+      ));
+      children.push(spacer());
+    }
+
+    const groupe = Array.isArray(data.groupe_de_travail) ? data.groupe_de_travail : [];
+    if (groupe.length) {
+      children.push(secHeading("Groupe de travail"));
+      children.push(dataTable(
+        ["Pr\xE9nom", "Nom", "Courriel", "Institution"],
+        groupe.map((m) => [m.prenom, m.nom, m.email, m.institution])
+      ));
+      children.push(spacer());
+    }
+
     const etapes = Array.isArray(data.etapes) ? data.etapes : [];
     if (etapes.length) {
       children.push(secHeading("Chronologie"));
@@ -4468,15 +4761,57 @@
       ));
       children.push(spacer());
     }
-    const documents = Array.isArray(data.documents) ? data.documents : [];
-    if (documents.length) {
-      children.push(secHeading("Documents et m\xE9dias"));
+
+    const jalons = Array.isArray(data.jalons) ? data.jalons : [];
+    if (jalons.length) {
+      children.push(secHeading("Jalons"));
       children.push(dataTable(
-        ["Nom", "Type", "URL / R\xE9f\xE9rence"],
-        documents.map((d) => [d.nom, d.type, d.url])
+        ["Description", "Date initiale", "Date de changement", "Statut"],
+        jalons.map((j) => [j.description, j.date_initiale, (j.date_changement && j.date_changement.length) ? j.date_changement[j.date_changement.length - 1] : "", j.statut])
       ));
       children.push(spacer());
     }
+
+    const rencontres = Array.isArray(data.rencontres_approbations) ? data.rencontres_approbations : [];
+    if (rencontres.length) {
+      children.push(secHeading("Rencontres / Approbations"));
+      children.push(dataTable(
+        ["Description", "Date initiale", "Date de changement", "Statut"],
+        rencontres.map((r) => [r.description, r.date_initiale, (r.date_changement && r.date_changement.length) ? r.date_changement[r.date_changement.length - 1] : "", r.statut])
+      ));
+      children.push(spacer());
+    }
+
+    const devs = Array.isArray(data.developpements_significatifs) ? data.developpements_significatifs : [];
+    if (devs.length) {
+      children.push(secHeading("D\xE9veloppements significatifs"));
+      children.push(dataTable(
+        ["Description", "Date initiale", "Date de changement", "Statut"],
+        devs.map((d) => [d.description, d.date_initiale, (d.date_changement && d.date_changement.length) ? d.date_changement[d.date_changement.length - 1] : "", d.statut])
+      ));
+      children.push(spacer());
+    }
+
+    const documents = Array.isArray(data.documents) ? data.documents : [];
+    if (documents.length) {
+      children.push(secHeading("Documents"));
+      children.push(dataTable(
+        ["Titre", "Type", "Description", "Date chargement", "Chargé par", "Lien"],
+        documents.map((d) => [d.titre || d.nom, d.type_document || d.type, d.description || "—", d.chargement_date || "", d.chargement_par || "", d.lien || d.url])
+      ));
+      children.push(spacer());
+    }
+
+    const media = Array.isArray(data.media) ? data.media : [];
+    if (media.length) {
+      children.push(secHeading("M\xE9dias"));
+      children.push(dataTable(
+        ["Label", "Auteur", "Date chargement", "Chargé par", "Lien"],
+        media.map((m) => [m.label, m.auteur || "—", m.chargement_date || "", m.chargement_par || "", m.lien])
+      ));
+      children.push(spacer());
+    }
+
     const doc = new Document({
       creator: "SPR \u2014 Suivi des Projets R\xE9glementaires",
       title: `SPR-${code} \u2014 ${data.titre || ""}`,
@@ -4539,12 +4874,12 @@
       ["Statut", safe(data.statut)],
       ["Priorit\xE9", safe(data.priorite)],
       ["Niveau de risque", safe(data.niveau_risque)],
-      ["Type", safe(data.type)],
-      ["R\xE8glement / Initiative", safe(data.reglement_initiative)],
+      ["Type de projet", safe(data.type_projet || data.type)],
+      ["R\xE8glement / Initiative", safe(data.reglement || data.reglement_initiative)],
       ["Direction principale", safe(data.direction_principale)],
-      ["Direction responsable", safe(data.direction_responsable)],
-      ["Juridiction principale", safe(data.juridiction_principale)],
-      ["Lois applicables", safe(data.loi)],
+      ["Direction responsable", Array.isArray(data.direction_responsable) ? data.direction_responsable.join(", ") : safe(data.direction_responsable)],
+      ["Juridiction principale", Array.isArray(data.juridiction_principale) ? data.juridiction_principale.join(", ") : safe(data.juridiction_principale)],
+      ["Lois applicables", Array.isArray(data.loi) ? data.loi.join(", ") : safe(data.loi)],
       ["Version", safe(data.version)],
       ["Phase actuelle", safe(data.phase_actuelle)],
       ["Date de d\xE9but", safe(data.date_debut)],
@@ -4552,9 +4887,12 @@
       ["Date de fin r\xE9elle", safe(data.date_fin_reelle)],
       [],
       ["Description", safe(data.description)],
+      ["Enjeux", safe(data.enjeux)],
+      ["Discussion", safe(data.discussion)],
       ["Objectifs", safe(data.objectifs)],
       ["Port\xE9e", safe(data.portee)],
-      ["Syst\xE8mes touch\xE9s", safe(data.systemes_touches)],
+      ["Impact système", data.impact_systeme ? "Impact identifié" : "Aucun impact"],
+      ["Description impact", safe(data.impact_description)],
       ["Commentaires", safe(data.commentaires)]
     ];
     const wsResume = XLSX.utils.aoa_to_sheet(resumeRows);
@@ -4587,18 +4925,138 @@
     const docsRows = [
       [`DOCUMENTS \u2014 SPR-${code}`],
       [],
-      ["Nom", "Type", "URL / R\xE9f\xE9rence", "Date"],
-      ...documents.map((d) => [safe(d.nom), safe(d.type), safe(d.url), safe(d.date)])
+      ["Titre", "Type", "Description", "Date chargement", "Chargé par", "Lien"],
+      ...documents.map((d) => [
+        safe(d.titre || d.nom),
+        safe(d.type_document || d.type),
+        safe(d.description),
+        safe(d.chargement_date || d.date),
+        safe(d.chargement_par),
+        safe(d.lien || d.url)
+      ])
     ];
     const wsDocs = XLSX.utils.aoa_to_sheet(docsRows);
-    wsDocs["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 48 }, { wch: 14 }];
-    wsDocs["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+    wsDocs["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 36 }, { wch: 16 }, { wch: 20 }, { wch: 48 }];
+    wsDocs["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
     XLSX.utils.book_append_sheet(wb, wsDocs, "Documents");
+
+    const media = Array.isArray(data.media) ? data.media : [];
+    if (media.length) {
+      const mediaRows = [
+        [`MÉDIAS — SPR-${code}`],
+        [],
+        ["Label", "Auteur", "Date chargement", "Chargé par", "Lien"],
+        ...media.map((m) => [safe(m.label), safe(m.auteur), safe(m.chargement_date), safe(m.chargement_par), safe(m.lien)])
+      ];
+      const wsMedia = XLSX.utils.aoa_to_sheet(mediaRows);
+      wsMedia["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 16 }, { wch: 20 }, { wch: 48 }];
+      wsMedia["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+      XLSX.utils.book_append_sheet(wb, wsMedia, "Médias");
+    }
+
+    const jalons = Array.isArray(data.jalons) ? data.jalons : [];
+    if (jalons.length) {
+      const jalonsRows = [
+        [`JALONS — SPR-${code}`],
+        [],
+        ["Description", "Date initiale", "Date de changement", "Statut"],
+        ...jalons.map((j) => [safe(j.description), safe(j.date_initiale), safe(j.date_changement && j.date_changement.length ? j.date_changement[j.date_changement.length - 1] : ""), safe(j.statut)])
+      ];
+      const wsJalons = XLSX.utils.aoa_to_sheet(jalonsRows);
+      wsJalons["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+      wsJalons["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsJalons, "Jalons");
+    }
+
+    const rencontres = Array.isArray(data.rencontres_approbations) ? data.rencontres_approbations : [];
+    if (rencontres.length) {
+      const rencontresRows = [
+        [`RENCONTRES — SPR-${code}`],
+        [],
+        ["Description", "Date initiale", "Date de changement", "Statut"],
+        ...rencontres.map((r) => [safe(r.description), safe(r.date_initiale), safe(r.date_changement && r.date_changement.length ? r.date_changement[r.date_changement.length - 1] : ""), safe(r.statut)])
+      ];
+      const wsRencontres = XLSX.utils.aoa_to_sheet(rencontresRows);
+      wsRencontres["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+      wsRencontres["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsRencontres, "Rencontres");
+    }
+
+    const devs = Array.isArray(data.developpements_significatifs) ? data.developpements_significatifs : [];
+    if (devs.length) {
+      const devsRows = [
+        [`DÉVELOPPEMENTS — SPR-${code}`],
+        [],
+        ["Description", "Date initiale", "Date de changement", "Statut"],
+        ...devs.map((d) => [safe(d.description), safe(d.date_initiale), safe(d.date_changement && d.date_changement.length ? d.date_changement[d.date_changement.length - 1] : ""), safe(d.statut)])
+      ];
+      const wsDevs = XLSX.utils.aoa_to_sheet(devsRows);
+      wsDevs["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+      wsDevs["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsDevs, "Développements");
+    }
+
+    const ressources = Array.isArray(data.Ressources_associees) ? data.Ressources_associees : [];
+    if (ressources.length) {
+      const ressourcesRows = [
+        [`RESSOURCES ASSOCIEES — SPR-${code}`],
+        [],
+        ["Nom", "Prénom", "Rôle", "Courriel"],
+        ...ressources.map((p) => [safe(p.nom), safe(p.prenom), safe(p.role), safe(p.email)])
+      ];
+      const wsRessources = XLSX.utils.aoa_to_sheet(ressourcesRows);
+      wsRessources["!cols"] = [{ wch: 20 }, { wch: 18 }, { wch: 26 }, { wch: 32 }];
+      wsRessources["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsRessources, "Ressources");
+    }
+
+    const soutien = Array.isArray(data.soutien_juridique) ? data.soutien_juridique : [];
+    if (soutien.length) {
+      const soutienRows = [
+        [`SOUTIEN JURIDIQUE — SPR-${code}`],
+        [],
+        ["Nom", "Prénom", "Rôle", "Courriel"],
+        ...soutien.map((p) => [safe(p.nom), safe(p.prenom), safe(p.role), safe(p.email)])
+      ];
+      const wsSoutien = XLSX.utils.aoa_to_sheet(soutienRows);
+      wsSoutien["!cols"] = [{ wch: 20 }, { wch: 18 }, { wch: 26 }, { wch: 32 }];
+      wsSoutien["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsSoutien, "Soutien juridique");
+    }
+
+    const comite = Array.isArray(data.Comite_ACVM) ? data.Comite_ACVM : [];
+    if (comite.length) {
+      const comiteRows = [
+        [`COMITE ACVM — SPR-${code}`],
+        [],
+        ["Prénom", "Nom", "Courriel", "Institution"],
+        ...comite.map((m) => [safe(m.prenom), safe(m.nom), safe(m.email), safe(m.institution)])
+      ];
+      const wsComite = XLSX.utils.aoa_to_sheet(comiteRows);
+      wsComite["!cols"] = [{ wch: 18 }, { wch: 18 }, { wch: 32 }, { wch: 28 }];
+      wsComite["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsComite, "Comité ACVM");
+    }
+
+    const groupe = Array.isArray(data.groupe_de_travail) ? data.groupe_de_travail : [];
+    if (groupe.length) {
+      const groupeRows = [
+        [`GROUPE DE TRAVAIL — SPR-${code}`],
+        [],
+        ["Prénom", "Nom", "Courriel", "Institution"],
+        ...groupe.map((m) => [safe(m.prenom), safe(m.nom), safe(m.email), safe(m.institution)])
+      ];
+      const wsGroupe = XLSX.utils.aoa_to_sheet(groupeRows);
+      wsGroupe["!cols"] = [{ wch: 18 }, { wch: 18 }, { wch: 32 }, { wch: 28 }];
+      wsGroupe["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      XLSX.utils.book_append_sheet(wb, wsGroupe, "Groupe de travail");
+    }
+
     try {
       XLSX.writeFile(wb, fname);
     } catch (err) {
       console.error("XLSX export error:", err);
-      showToast("Erreur lors de la g\xE9n\xE9ration Excel.", "error");
+      showToast("Erreur lors de la génération Excel.", "error");
     }
   }
 
@@ -5398,7 +5856,10 @@
         const html = renderDashboard(state.projects, state.currentUser);
         setMainContent(html);
         requestAnimationFrame(() => {
-          setTimeout(() => initDashboardCharts(state.projects), 100);
+          setTimeout(() => {
+            initDashboardCharts(state.projects);
+            updateActiveQuickFilter(null);
+          }, 100);
         });
       } else if (route === "projects") {
         updateBreadcrumb([{ label: "Projets" }]);
@@ -5654,18 +6115,70 @@
       return;
     e.preventDefault();
     const filter = quickFilter.dataset.quickFilter;
-    const filterMap = {
-      "en-cours": "#projects?statut=en%20cours",
-      "en-attente": "#projects?statut=en%20attente",
-      "priorite-elevee": "#projects?priorite=%C3%A9lev%C3%A9",
-      "risque-eleve": "#projects?risque=%C3%A9lev%C3%A9"
-    };
-    const hash = filterMap[filter];
-    if (hash) {
-      closeMobileSidebar();
-      goTo(hash);
+    closeMobileSidebar();
+
+    const currentRoute = parseHash(window.location.hash).route || "dashboard";
+    if (currentRoute === "projects") {
+      // Already on projects view — apply filter in place
+      applyQuickFilter(filter);
+    } else {
+      // Navigate to projects view with the filter as URL params
+      const filterMap = {
+        "all": "#projects",
+        "en-cours": "#projects?statut=en%20cours",
+        "en-attente": "#projects?statut=en%20attente",
+        "priorite-elevee": `#projects?priorite=${encodeURIComponent("\xE9lev\xE9")}`,
+        "risque-eleve": `#projects?risque=${encodeURIComponent("\xE9lev\xE9")}`
+      };
+      navigate2(filterMap[filter] || "#projects");
     }
   });
+
+  function applyQuickFilter(filter) {
+    let filteredProjects = state.projects;
+
+    switch (filter) {
+      case "all":
+        filteredProjects = state.projects;
+        break;
+      case "en-cours":
+        filteredProjects = state.projects.filter(p => p.statut === "en cours");
+        break;
+      case "en-attente":
+        filteredProjects = state.projects.filter(p => p.statut === "en attente");
+        break;
+      case "priorite-elevee":
+        filteredProjects = state.projects.filter(p => p.priorite === "\xE9lev\xE9");
+        break;
+      case "risque-eleve":
+        filteredProjects = state.projects.filter(p => p.niveau_risque === "\xE9lev\xE9");
+        break;
+    }
+
+    // Mettre à jour le graphique si le canvas est présent (vue projets)
+    const chartContainer = document.getElementById("projects-stats-chart");
+    if (chartContainer) {
+      renderProjectsChart(filteredProjects);
+    }
+
+    // Mettre à jour l'interface pour montrer le filtre actif
+    updateActiveQuickFilter(filter);
+  }
+
+  function updateActiveQuickFilter(activeFilter) {
+    // Retirer la classe active de tous les boutons de filtre
+    document.querySelectorAll("[data-quick-filter]").forEach(btn => {
+      btn.classList.remove("bg-blue-50", "text-blue-700", "font-medium");
+      btn.classList.add("text-gray-600");
+    });
+
+    // Ajouter la classe active au bouton sélectionné
+    const activeBtn = document.querySelector(`[data-quick-filter="${activeFilter}"]`);
+    if (activeBtn) {
+      activeBtn.classList.remove("text-gray-600");
+      activeBtn.classList.add("bg-blue-50", "text-blue-700", "font-medium");
+    }
+  }
   function goTo(hash) {
     if (window.location.protocol === "file:") {
       navigate2(hash);
