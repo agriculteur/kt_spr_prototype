@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPR — Suivi des Projets Réglementaires</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50:  '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+          },
+          keyframes: {
+            fadeIn: {
+              '0%':   { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            slideUp: {
+              '0%':   { opacity: '0', transform: 'scale(0.96) translateY(12px)' },
+              '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+            },
+            slideInRight: {
+              '0%':   { transform: 'translateX(100%)' },
+              '100%': { transform: 'translateX(0)' },
+            },
+          },
+          animation: {
+            fadeIn:       'fadeIn 0.25s ease-out',
+            slideUp:      'slideUp 0.2s ease-out',
+            slideInRight: 'slideInRight 0.3s ease-out',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- PDFMake CDN (PDF export) -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js"></script>
+  <!-- docx.js CDN (Word export) -->
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <!-- SheetJS CDN (Excel export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* Active sidebar link */
+    .sidebar-link {
+      transition: all 0.15s ease;
+    }
+    .sidebar-link.active {
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+    .sidebar-link.active .sidebar-link-icon {
+      color: #2563eb;
+    }
+    .sidebar-link:not(.active):hover {
+      background-color: #f8fafc;
+      color: #374151;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Main scrollable content */
+    #main-content {
+      scrollbar-gutter: stable;
+    }
+
+    /* Line clamp utility */
+    .line-clamp-1 {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Fade in animation class */
+    .animate-fadeIn {
+      animation: fadeIn 0.25s ease-out;
+    }
+    .animate-slideUp {
+      animation: slideUp 0.2s ease-out;
+    }
+
+    /* Dark mode overrides */
+    .dark body { background-color: #0f172a; color: #e2e8f0; }
+    .dark .bg-white { background-color: #1e293b !important; }
+    .dark .border-gray-200 { border-color: #334155 !important; }
+    .dark .border-gray-100 { border-color: #334155 !important; }
+    .dark .text-gray-900 { color: #e2e8f0 !important; }
+    .dark .text-gray-500, .dark .text-gray-400 { color: #94a3b8 !important; }
+    .dark .bg-gray-50 { background-color: #0f172a !important; }
+    .dark .bg-gray-100 { background-color: #1e293b !important; }
+    .dark .bg-gray-200 { background-color: #334155 !important; }
+    .dark .bg-blue-50 { background-color: #1e293b !important; }
+    .dark .bg-blue-100 { background-color: #334155 !important; }
+
+    /* ── Print / PDF ──────────────────────────────────────────────────────── */
+    @media print {
+      /* Hide entire app shell — show only the preview overlay */
+      body > *:not(#spr-print-preview) { display: none !important; }
+      #spr-print-preview {
+        position: static !important;
+        overflow: visible !important;
+        background: white;
+      }
+      #preview-action-bar { display: none !important; }
+      #preview-content {
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+      /* Avoid page breaks inside tables and cards */
+      table, tr, .mb-8 { break-inside: avoid; }
+      a { color: inherit !important; text-decoration: none !important; }
+    }
+
+    /* Loading bar */
+    #loading-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      z-index: 9999;
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #2563eb 100%);
+      background-size: 200% 100%;
+      animation: loadingBar 1.2s linear infinite;
+    }
+    @keyframes loadingBar {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased min-h-screen flex">
+
+  <!-- Loading indicator -->
+  <div id="loading-indicator" class="hidden"></div>
+
+  <!-- ── Mobile Sidebar Overlay ─────────────────────────────────────────── -->
+  <div id="sidebar-overlay" class="hidden fixed inset-0 z-30 bg-black/40 lg:hidden"></div>
+
+  <!-- ── Mobile Sidebar ─────────────────────────────────────────────────── -->
+  <aside id="mobile-sidebar"
+    class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 shadow-xl
+           transform -translate-x-full transition-transform duration-300 ease-in-out
+           lg:hidden flex flex-col">
+    <!-- Logo -->
+    <div class="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+          <span class="text-white text-sm font-black">SPR</span>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-gray-900 leading-none">SPR</p>
+          <p class="text-xs text-gray-400 leading-none mt-0.5">Projets réglementaires</p>
+        </div>
+      </div>
+      <button id="btn-mobile-close" onclick="document.getElementById('mobile-sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-overlay').classList.add('hidden');"
+        class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- User -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div id="mobile-sidebar-user-avatar" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+          MT
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate" id="mobile-sidebar-user-name">Marie Tremblay</p>
+          <p class="text-xs text-gray-400 truncate" id="mobile-sidebar-user-email">marie.tremblay@autorite.qc.ca</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-3 overflow-y-auto" id="mobile-sidebar-nav">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Navigation</p>
+      <a href="#dashboard" class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-route="dashboard">
+        <svg class="sidebar-link-icon w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+        </svg>
+        Tableau de bord
+      </a>
+      <a href="#projects" class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-route="projects">
+        <svg class="sidebar-link-icon w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+        Projets
+        <span id="projects-count-badge-mobile" class="ml-auto px-1.5 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full font-medium">—</span>
+      </a>
+      <a href="#help" class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-route="help">
+        <svg class="sidebar-link-icon w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        Manuel
+      </a>
+
+      <div class="mt-4">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Filtres rapides</p>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="en-cours">
+          <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+          En cours
+        </button>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="en-attente">
+          <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+          En attente
+        </button>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="priorite-elevee">
+          <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+          Priorité élevée
+        </button>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="risque-eleve">
+          <span class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+          Risque élevé
+        </button>
+      </div>
+    </nav>
+
+    <!-- DEV badge -->
+    <div class="px-4 py-3 border-t border-gray-100">
+      <span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+        Mode développement
+      </span>
+    </div>
+  </aside>
+
+  <!-- ── Desktop Sidebar ─────────────────────────────────────────────────── -->
+  <aside class="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-200 min-h-screen sticky top-0 h-screen">
+    <!-- Logo -->
+    <div class="px-4 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
+          <span class="text-white text-sm font-black tracking-tight">SPR</span>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-gray-900 leading-none">SPR</p>
+          <p class="text-xs text-gray-400 leading-none mt-0.5">Projets réglementaires</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- User -->
+    <div class="px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div id="sidebar-user-avatar" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
+          MT
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-gray-800 truncate" id="sidebar-user-name">Chargement…</p>
+          <p class="text-xs text-gray-400 truncate" id="sidebar-user-email"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-3 overflow-y-auto" id="sidebar-nav">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">Navigation</p>
+      <a href="#dashboard" class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-route="dashboard">
+        <svg class="sidebar-link-icon w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+        </svg>
+        Tableau de bord
+      </a>
+      <a href="#projects" class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-route="projects">
+        <svg class="sidebar-link-icon w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+        Projets
+        <span id="projects-count-badge" class="ml-auto px-1.5 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full font-medium">—</span>
+      </a>
+      <a href="#help" class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-route="help">
+        <svg class="sidebar-link-icon w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        Manuel
+      </a>
+
+      <div class="mt-4 pt-3 border-t border-gray-100">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">Filtres rapides</p>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="en-cours">
+          <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+          En cours
+        </button>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="en-attente">
+          <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+          En attente
+        </button>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="priorite-elevee">
+          <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+          Priorité élevée
+        </button>
+        <button class="sidebar-link w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 mb-0.5" data-quick-filter="risque-eleve">
+          <span class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+          Risque élevé
+        </button>
+      </div>
+    </nav>
+
+    <!-- Footer -->
+    <div class="px-4 py-3 border-t border-gray-100">
+      <span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+        Mode développement
+      </span>
+    </div>
+  </aside>
+
+  <!-- ── Main Area ───────────────────────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col min-w-0 min-h-screen">
+
+    <!-- Top Header -->
+    <header class="sticky top-0 z-20 bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center gap-3">
+      <!-- Mobile menu button -->
+      <button id="btn-mobile-menu"
+        class="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        aria-label="Menu">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+
+      <!-- Breadcrumb -->
+      <nav class="flex-1 flex items-center gap-1.5 min-w-0" id="breadcrumb" aria-label="Fil d'Ariane">
+        <span class="text-sm text-gray-500">Tableau de bord</span>
+      </nav>
+
+      <!-- Recherche globale en-tête -->
+      <div class="hidden md:flex flex-1 max-w-lg">
+        <div class="relative w-full">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input id="top-search" type="search" placeholder="Rechercher un projet..." aria-label="Recherche projet" class="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+        </div>
+      </div>
+
+      <!-- Right actions -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Theme button -->
+        <button id="btn-theme-toggle" title="Basculer mode sombre / clair" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+          <svg id="theme-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-11.66l-.7.7M4.34 19.66l-.7.7M21 12h-1M4 12H3m15.66 6.66l-.7-.7M4.34 4.34l-.7-.7M12 7a5 5 0 100 10 5 5 0 000-10z"/>
+          </svg>
+        </button>
+
+        <!-- Draft indicator -->
+        <div class="relative">
+          <button id="btn-drafts" title="Brouillons en cours"
+            class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors relative">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            <span id="draft-count-badge"
+              class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center">
+              0
+            </span>
+          </button>
+        </div>
+
+        <!-- Refresh button -->
+        <button id="btn-refresh" title="Actualiser les données"
+          class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main scrollable content -->
+    <main id="main-content" class="flex-1 overflow-y-auto p-4 lg:p-6">
+      <!-- Content is rendered here by the router -->
+      <div class="flex items-center justify-center h-full min-h-[60vh]">
+        <div class="text-center text-gray-400">
+          <svg class="w-10 h-10 mx-auto mb-2 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <p class="text-sm">Chargement de l'application…</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── Toast Container ────────────────────────────────────────────────── -->
+  <div id="toast-container"
+    class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"
+    aria-live="polite">
+  </div>
+
+  <!-- ── Modal Container ────────────────────────────────────────────────── -->
+  <div id="modal-container" class="hidden"></div>
+
+  <script src="spr.bundle.js"></script>
+</body>
+</html>

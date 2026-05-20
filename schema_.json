@@ -1,0 +1,86 @@
+[
+    {
+        "code": 1,
+        "titre": "str",
+        "type_projet": "str",
+        "reglement": "str",
+        "statut": [ "en cours", "terminé", "en attente", "clos"],
+        "priorite": ["faible", "moyen", "élevé"],
+        "loi": ["str1", "str2", "str3"],       
+        "niveau_risque": ["élevé", "moyen", "faible"],
+        "juridiction_principale": "[str1, str2, ..., str10, 'str11']",
+        "direction_principale": "Direction_principale",
+        "direction_responsable": ["Direction_responsable"],
+        "Ressources_associees": [{
+            "photo": "https://example.com/photo.jpg",
+            "prenom": "John",
+            "nom": "Doe",
+            "email": "YQHw0@example.com",
+            "role": "Contributeur",
+        }],
+        "soutien_juridique": [{
+            "photo": "https://example.com/photo.jpg",
+            "prenom": "John",
+            "nom": "Doe",
+            "email": "YQHw0@example.com",
+            "role": "Contributeur",
+        }],
+        "Comite_ACVM": [{
+            "prenom": "John",
+            "nom": "Doe",
+            "email": "YQHw0@example.com",
+            "institution": "Contributeur",
+        }],
+        "groupe_de_travail": [{
+            "prenom": "John",
+            "nom": "Doe",
+            "email": "YQHw0@example.com",
+            "institution": "Contributeur",
+        }],
+        "description": "Représente un utilisateur du système.",
+        "enjeux": "Enjeux associés à l'utilisateur.",
+        "discussion": "Discussion sur l'utilisateur.",
+        "developpements_significatifs": [
+            {
+                "date_initiale": "2024-01-01",
+                "date_changement": ["2024-01-01", "2024-03-0"],
+                "description": "Description du développement significatif.",
+                "statut": "Impact du développement sur l'utilisateur."
+            }
+        ],
+        "rencontres_approbations": [
+            {
+                "date_initiale": "2024-01-01",
+                "date_changement": ["2024-01-01", "2024-03-14"],
+                "description": "Description du développement significatif.",
+                "statut": "Impact du développement sur l'utilisateur."
+            }
+        ],
+        "jalons": [
+            {
+                "date_initiale": "2024-01-01",
+                "date_changement": ["2024-01-01", "2024-03-14"],
+                "description": "Description du développement significatif.",
+                "statut": "Impact du développement sur l'utilisateur."
+            }
+        ],
+        
+        "impact_système": true,
+        "impact_description": "description de l'impact sur le système.",
+        "documents": [{
+            "titre": "Document associé au projet",
+            "type_document": "type de document",
+            "lien": "https://example.com/document.pdf",
+            "description": "Description du document associé au projet.",
+            "chargement_date": "2024-01-01",
+            "chargement_par":"email@example.com",
+        }],
+        "media": [{
+            "lien": "https://example.com/photo.jpg",
+            "label": "Description de la photo associée au projet.",
+            "chargement_date": "2024-01-01",
+            "chargement_par":"email@example.com",
+            "auteur": "John Doe",
+        }]
+    }
+]

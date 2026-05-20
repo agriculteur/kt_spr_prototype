@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\Direction Projets\\\\Documents\\\\sources\\\\spr_fs\\\\js\\\\components\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Direction Projets\\\\Documents\\\\sources\\\\spr_fs\\\\js\\\\views\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Direction Projets\\\\Documents\\\\sources\\\\spr_fs\\\\data\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Direction Projets\\Documents\\sources\\spr_fs\\js"
+    ]
+  }
+}

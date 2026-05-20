@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegulTrack Pro | CRUD Expert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(226, 232, 240, 0.8); }
+        .active-nav { background: #0ea5e9; color: white !important; box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.3); }
+        .form-card { background: white; border: 1px solid #e2e8f0; border-radius: 24px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .input-field { width: 100%; padding: 0.75rem 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.875rem; transition: all 0.2s; }
+        .input-field:focus { background: white; border-color: #0ea5e9; ring: 2px; ring-color: #0ea5e9; outline: none; }
+        .label-style { display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+        .btn-primary { background: #0ea5e9; color: white; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700; transition: all 0.2s; }
+        .btn-primary:hover { background: #0284c7; transform: translateY(-1px); }
+        .btn-danger { background: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700; transition: all 0.2s; }
+        .btn-danger:hover { background: #dc2626; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <div id="toast-container" class="fixed top-6 right-6 z-[100] space-y-3"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transition-transform md:translate-x-0 -translate-x-full">
+        <div class="flex flex-col h-full p-6">
+            <div class="flex items-center space-x-3 mb-10 px-2">
+                <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <i class="fas fa-shield-halved text-white text-xl"></i>
+                </div>
+                <span class="text-xl font-extrabold tracking-tight">Regul<span class="text-sky-400">Track</span></span>
+            </div>
+
+            <nav class="flex-1 space-y-2">
+                <button onclick="navigate('dashboard')" id="nav-dashboard" class="flex items-center w-full p-3.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group">
+                    <i class="fas fa-grip-vertical w-6 mr-2 group-hover:scale-110 transition-transform"></i> <span class="text-sm font-semibold">Tableau de Bord</span>
+                </button>
+                <button onclick="navigate('projects')" id="nav-projects" class="flex items-center w-full p-3.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group">
+                    <i class="fas fa-folder-tree w-6 mr-2 group-hover:scale-110 transition-transform"></i> <span class="text-sm font-semibold">Projets</span>
+                </button>
+                <button onclick="navigate('create')" id="nav-create" class="flex items-center w-full p-3.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group">
+                    <i class="fas fa-plus-circle w-6 mr-2 group-hover:scale-110 transition-transform"></i> <span class="text-sm font-semibold">Nouveau Projet</span>
+                </button>
+            </nav>
+        </div>
+    </aside>
+
+    <div class="md:ml-64 min-h-screen flex flex-col">
+        <header class="glass sticky top-0 z-40 h-20 px-8 flex items-center justify-between">
+            <div id="view-title" class="text-sm font-black text-slate-400 uppercase tracking-widest">Aperçu</div>
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="globalSearch" onkeyup="filterProjects()" placeholder="Rechercher..." class="bg-slate-100 border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none w-64 transition-all">
+                </div>
+            </div>
+        </header>
+
+        <main id="app-container" class="p-8 max-w-7xl mx-auto w-full">
+            </main>
+    </div>
+
+    <script>
+        /* ==========================================
+           1. INITIALISATION & SCHEMA DATA
+        ========================================== */
+        // Chargement initial avec les données de votre schema.json
+        const initialSchemaData = [
+            {
+                "code": 1042,
+                "titre": "Mise à jour des normes de divulgation ESG",
+                "type_projet": "Réglementaire et Conformité",
+                "reglement": "Règlement 51-107",
+                "statut": "en cours",
+                "priorite": "élevé",
+                "loi": ["Loi sur les valeurs mobilières (Québec)", "Securities Act (Ontario)"],
+                "niveau_risque": "moyen",
+                "juridiction_principale": "Québec",
+                "direction_principale": "Direction des marchés des capitaux",
+                "direction_responsable": ["Direction de l'information continue", "Direction des affaires juridiques"],
+                "Ressources_associees": [
+                    { "photo": "https://example.com/photos/jdupont.jpg", "prenom": "Jean", "nom": "Dupont", "email": "jean.dupont@autorite.qc.ca", "role": "Chef de projet" },
+                    { "photo": "https://example.com/photos/mleblanc.jpg", "prenom": "Marie", "nom": "Leblanc", "email": "marie.leblanc@autorite.qc.ca", "role": "Contributeur" }
+                ],
+                "soutien_juridique": [
+                    { "photo": "https://example.com/photos/pbergeron.jpg", "prenom": "Paul", "nom": "Bergeron", "email": "paul.bergeron@autorite.qc.ca", "role": "Conseiller juridique" }
+                ],
+                "Comite_ACVM": [
+                    { "prenom": "Sarah", "nom": "Smith", "email": "ssmith@osc.gov.on.ca", "institution": "Commission des valeurs mobilières de l'Ontario (CVMO)" }
+                ],
+                "groupe_de_travail": [
+                    { "prenom": "Luc", "nom": "Tremblay", "email": "luc.tremblay@autorite.qc.ca", "institution": "AMF Québec" },
+                    { "prenom": "David", "nom": "Wong", "email": "dwong@bcsc.bc.ca", "institution": "British Columbia Securities Commission (BCSC)" }
+                ],
+                "description": "Ce projet vise à harmoniser les obligations d'information liées aux changements climatiques et aux critères ESG pour les émetteurs assujettis, en alignement avec les nouvelles normes internationales de l'ISSB.",
+                "enjeux": "Forte résistance anticipée de la part des petits émetteurs concernant les coûts de conformité. Nécessité d'une coordination étroite avec les autres provinces canadiennes.",
+                "discussion": "Le dernier point de discussion a porté sur l'exemption potentielle pour les émetteurs émergents. Une décision doit être prise avant la prochaine publication pour consultation.",
+                "developpements_significatifs": [
+                    { "date_initiale": "2024-02-15", "date_changement": ["2024-02-15", "2024-03-10"], "description": "Publication du premier avis de consultation publique sur le Règlement 51-107.", "statut": "Consultation terminée, analyse des commentaires en cours." }
+                ],
+                "rencontres_approbations": [
+                    { "date_initiale": "2024-04-05", "date_changement": ["2024-04-05", "2024-04-12"], "description": "Rencontre de présentation au comité de direction pour approbation des modifications post-consultation.", "statut": "Approuvé avec des modifications mineures." }
+                ],
+                "jalons": [
+                    { "date_initiale": "2024-09-01", "date_changement": ["2024-09-01", "2024-10-15"], "description": "Entrée en vigueur prévue des nouvelles dispositions.", "statut": "En attente de l'approbation ministérielle." }
+                ],
+                "impact_système": true,
+                "impact_description": "Nécessite une mise à jour du système SEDAR+ pour inclure les nouveaux formulaires de déclaration ESG obligatoires.",
+                "documents": [
+                    { "titre": "Projet de Règlement 51-107 v2", "type_document": "Texte réglementaire", "lien": "#", "description": "Version consolidée incluant les commentaires de l'industrie.", "chargement_date": "2024-03-20", "chargement_par": "marie.leblanc@autorite.qc.ca" }
+                ],
+                "media": [
+                    { "lien": "#", "label": "Enregistrement vidéo de la présentation au Conseil d'Administration", "chargement_date": "2024-04-13", "chargement_par": "jean.dupont@autorite.qc.ca", "auteur": "Équipe des communications" }
+                ],
+                "date_creation": "2024-01-10T10:00:00Z",
+                "date_modification": "2024-04-13T15:30:00Z"
+            }
+        ];
+
+        let projects = JSON.parse(localStorage.getItem('regul_projects')) || initialSchemaData;
+
+        function save() { 
+            localStorage.setItem('regul_projects', JSON.stringify(projects)); 
+        }
+
+        const formatDate = (d) => d ? new Date(d).toLocaleString('fr-FR') : 'N/A';
+
+        /* ==========================================
+           2. NAVIGATION & ROUTAGE
+        ========================================== */
+        function navigate(view, id = null) {
+            const container = document.getElementById('app-container');
+            const title = document.getElementById('view-title');
+            
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-nav'));
+            const btn = document.getElementById(`nav-${view}`);
+            if (btn) btn.classList.add('active-nav');
+
+            if (view === 'dashboard') { title.innerText = "Tableau de Bord"; container.innerHTML = renderDashboard(); }
+            if (view === 'projects') { title.innerText = "Liste des Projets"; container.innerHTML = renderProjectList(); }
+            if (view === 'detail') { title.innerText = "Détails du Projet"; container.innerHTML = renderDetail(id); }
+            if (view === 'create') { title.innerText = "Nouveau Projet"; container.innerHTML = renderForm(); }
+            if (view === 'edit') { title.innerText = "Modification"; container.innerHTML = renderForm(id); }
+            
+            window.scrollTo(0,0);
+        }
+
+        /* ==========================================
+           3. VUES (LISTE & DASHBOARD)
+        ========================================== */
+        function renderDashboard() {
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                    ${kpiCard("Total Projets", projects.length, "fa-folder", "text-sky-500", "bg-sky-50")}
+                    ${kpiCard("Priorité Élevée", projects.filter(p => p.priorite === 'élevé').length, "fa-circle-exclamation", "text-rose-500", "bg-rose-50")}
+                    ${kpiCard("Impact Système", projects.filter(p => p.impact_système).length, "fa-microchip", "text-indigo-500", "bg-indigo-50")}
+                    ${kpiCard("Juridictions", [...new Set(projects.map(p => p.juridiction_principale))].length, "fa-map-location-dot", "text-emerald-500", "bg-emerald-50")}
+                </div>
+            `;
+        }
+
+        function kpiCard(l, v, i, c, b) {
+            return `<div class="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="w-12 h-12 ${b} ${c} flex items-center justify-center rounded-2xl text-xl"><i class="fas ${i}"></i></div>
+                <div><p class="text-[10px] font-black uppercase text-slate-400 tracking-widest">${l}</p><p class="text-2xl font-black">${v}</p></div>
+            </div>`;
+        }
+
+        function renderProjectList() {
+            return `
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-black text-slate-900">Catalogue Réglementaire</h1>
+                    <button onclick="navigate('create')" class="btn-primary flex items-center"><i class="fas fa-plus mr-2"></i> Ajouter</button>
+                </div>
+                <div id="projectGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${projects.map(p => `
+                        <div onclick="navigate('detail', ${p.code})" class="bg-white p-7 rounded-[32px] border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
+                            <div class="flex justify-between items-start mb-6">
+                                <span class="text-[10px] font-black text-sky-500 uppercase tracking-tighter">Code #${p.code}</span>
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${p.statut === 'en cours' ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-600'}">${p.statut}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 group-hover:text-sky-600 transition mb-3 line-clamp-1">${p.titre}</h3>
+                            <p class="text-xs text-slate-500 line-clamp-2 mb-6 h-8">${p.description}</p>
+                            <div class="pt-5 border-t border-slate-100 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">MAJ: ${formatDate(p.date_modification).split(' ')[0]}</span>
+                                <div class="flex -space-x-2">
+                                    ${(p.Ressources_associees || []).slice(0,3).map(r => `<img src="https://i.pravatar.cc/100?u=${r.email}" class="w-6 h-6 rounded-full border-2 border-white shadow-sm">`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        /* ==========================================
+           4. FORMULAIRE CRUD COMPLET (CREATE/EDIT)
+        ========================================== */
+        function renderForm(id = null) {
+            const isEdit = id !== null;
+            const p = isEdit ? projects.find(x => x.code === id) : { 
+                code: Math.floor(1000 + Math.random() * 9000), 
+                loi: [], direction_responsable: [], Ressources_associees: [], soutien_juridique: [], Comite_ACVM: [], groupe_de_travail: [], developpements_significatifs: [], rencontres_approbations: [], jalons: [], documents: [], media: [], impact_système: false
+            };
+
+            return `
+                <form onsubmit="handleSave(event, ${isEdit ? id : null})" class="max-w-5xl mx-auto pb-20">
+                    <div class="flex justify-between items-center mb-10 sticky top-24 z-30 bg-slate-50/80 backdrop-blur py-4">
+                        <h1 class="text-3xl font-black">${isEdit ? 'Modifier le dossier' : 'Nouveau Dossier'}</h1>
+                        <div class="flex space-x-3">
+                            <button type="button" onclick="navigate('projects')" class="px-6 py-2 text-sm font-bold text-slate-500">Annuler</button>
+                            <button type="submit" class="btn-primary">Enregistrer la fiche</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="form-card space-y-6">
+                            <h3 class="text-sky-500 font-black text-xs uppercase tracking-widest border-b pb-4 mb-6"><i class="fas fa-id-card mr-2"></i> Identification</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="label-style">Code Projet</label><input id="f-code" type="number" value="${p.code}" class="input-field font-bold" readonly></div>
+                                <div><label class="label-style">Référence Règlement</label><input id="f-reglement" type="text" value="${p.reglement || ''}" class="input-field" placeholder="ex: 51-107"></div>
+                            </div>
+                            <div><label class="label-style">Titre Complet</label><input id="f-titre" type="text" value="${p.titre || ''}" class="input-field" required></div>
+                            <div><label class="label-style">Type de Projet</label><input id="f-type_projet" type="text" value="${p.type_projet || ''}" class="input-field"></div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <div><label class="label-style">Statut</label><select id="f-statut" class="input-field font-bold"><option ${p.statut==='en cours'?'selected':''}>en cours</option><option ${p.statut==='terminé'?'selected':''}>terminé</option></select></div>
+                                <div><label class="label-style">Priorité</label><select id="f-priorite" class="input-field font-bold"><option ${p.priorite==='faible'?'selected':''}>faible</option><option ${p.priorite==='moyen'?'selected':''}>moyen</option><option ${p.priorite==='élevé'?'selected':''}>élevé</option></select></div>
+                                <div><label class="label-style">Risque</label><select id="f-niveau_risque" class="input-field font-bold"><option ${p.niveau_risque==='faible'?'selected':''}>faible</option><option ${p.niveau_risque==='moyen'?'selected':''}>moyen</option><option ${p.niveau_risque==='élevé'?'selected':''}>élevé</option></select></div>
+                            </div>
+                        </div>
+
+                        <div class="form-card space-y-6">
+                            <h3 class="text-sky-500 font-black text-xs uppercase tracking-widest border-b pb-4 mb-6"><i class="fas fa-gavel mr-2"></i> Gouvernance</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="label-style">Juridiction</label><input id="f-juridiction" type="text" value="${p.juridiction_principale || ''}" class="input-field"></div>
+                                <div><label class="label-style">Direction Principale</label><input id="f-direction" type="text" value="${p.direction_principale || ''}" class="input-field"></div>
+                            </div>
+                            <div><label class="label-style">Lois (une par ligne)</label><textarea id="f-loi" class="input-field h-20">${(p.loi || []).join('\n')}</textarea></div>
+                            <div><label class="label-style">Directions Responsables (une par ligne)</label><textarea id="f-dir_resp" class="input-field h-20">${(p.direction_responsable || []).join('\n')}</textarea></div>
+                        </div>
+
+                        <div class="form-card lg:col-span-2 space-y-6">
+                            <h3 class="text-sky-500 font-black text-xs uppercase tracking-widest border-b pb-4 mb-6"><i class="fas fa-pen-nib mr-2"></i> Contenu Édactionnel</h3>
+                            <div><label class="label-style">Description Globale</label><textarea id="f-description" class="input-field h-32">${p.description || ''}</textarea></div>
+                            <div class="grid grid-cols-2 gap-6">
+                                <div><label class="label-style">Enjeux Stratégiques</label><textarea id="f-enjeux" class="input-field h-24">${p.enjeux || ''}</textarea></div>
+                                <div><label class="label-style">Derniers Points de Discussion</label><textarea id="f-discussion" class="input-field h-24">${p.discussion || ''}</textarea></div>
+                            </div>
+                            <div class="flex items-start space-x-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div class="flex items-center h-10"><input id="f-impact_système" type="checkbox" ${p.impact_système ? 'checked' : ''} class="w-5 h-5 rounded text-sky-500"></div>
+                                <div class="flex-1"><label class="label-style">Impact sur les systèmes informatiques</label><input id="f-impact_desc" type="text" value="${p.impact_description || ''}" class="input-field" placeholder="Décrivez l'impact système..."></div>
+                            </div>
+                        </div>
+
+                        <div class="form-card lg:col-span-2 bg-slate-900 text-white">
+                            <h3 class="text-sky-400 font-black text-xs uppercase tracking-widest border-b border-slate-800 pb-4 mb-6"><i class="fas fa-code mr-2"></i> Données de Structure Complexes (Format JSON)</h3>
+                            <p class="text-[10px] text-slate-500 mb-6 italic">Modifiez directement les structures d'objets (Ressources, Jalons, ACVM, etc.) pour respecter le schéma expert.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div><label class="label-style text-slate-400">Ressources Associées (Equipe)</label><textarea id="f-ressources" class="input-field bg-slate-800 border-slate-700 text-sky-300 font-mono text-[10px] h-32">${JSON.stringify(p.Ressources_associees, null, 2)}</textarea></div>
+                                <div><label class="label-style text-slate-400">Jalons & Chronologie</label><textarea id="f-jalons" class="input-field bg-slate-800 border-slate-700 text-sky-300 font-mono text-[10px] h-32">${JSON.stringify(p.jalons, null, 2)}</textarea></div>
+                                <div><label class="label-style text-slate-400">Comité ACVM & GT</label><textarea id="f-comite" class="input-field bg-slate-800 border-slate-700 text-sky-300 font-mono text-[10px] h-32">${JSON.stringify(p.Comite_ACVM, null, 2)}</textarea></div>
+                                <div><label class="label-style text-slate-400">Documents Externes</label><textarea id="f-docs" class="input-field bg-slate-800 border-slate-700 text-sky-300 font-mono text-[10px] h-32">${JSON.stringify(p.documents, null, 2)}</textarea></div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            `;
+        }
+
+        /* ==========================================
+           5. LOGIQUE DE SAUVEGARDE & DELETE
+        ========================================== */
+        function handleSave(e, id) {
+            e.preventDefault();
+            const isEdit = id !== null;
+            const now = new Date().toISOString();
+            
+            try {
+                const updatedObj = {
+                    code: parseInt(document.getElementById('f-code').value),
+                    titre: document.getElementById('f-titre').value,
+                    type_projet: document.getElementById('f-type_projet').value,
+                    reglement: document.getElementById('f-reglement').value,
+                    statut: document.getElementById('f-statut').value,
+                    priorite: document.getElementById('f-priorite').value,
+                    niveau_risque: document.getElementById('f-niveau_risque').value,
+                    juridiction_principale: document.getElementById('f-juridiction').value,
+                    direction_principale: document.getElementById('f-direction').value,
+                    loi: document.getElementById('f-loi').value.split('\n').filter(l => l.trim() !== ""),
+                    direction_responsable: document.getElementById('f-dir_resp').value.split('\n').filter(d => d.trim() !== ""),
+                    description: document.getElementById('f-description').value,
+                    enjeux: document.getElementById('f-enjeux').value,
+                    discussion: document.getElementById('f-discussion').value,
+                    impact_système: document.getElementById('f-impact_système').checked,
+                    impact_description: document.getElementById('f-impact_desc').value,
+                    
+                    // Parsing JSON pour les champs complexes
+                    Ressources_associees: JSON.parse(document.getElementById('f-ressources').value),
+                    jalons: JSON.parse(document.getElementById('f-jalons').value),
+                    Comite_ACVM: JSON.parse(document.getElementById('f-comite').value),
+                    documents: JSON.parse(document.getElementById('f-docs').value),
+                    
+                    // Automatisation des dates
+                    date_creation: isEdit ? projects.find(x => x.code === id).date_creation : now,
+                    date_modification: now,
+                    
+                    // Champs optionnels préservés
+                    soutien_juridique: isEdit ? projects.find(x => x.code === id).soutien_juridique : [],
+                    groupe_de_travail: isEdit ? projects.find(x => x.code === id).groupe_de_travail : [],
+                    media: isEdit ? projects.find(x => x.code === id).media : []
+                };
+
+                if (isEdit) {
+                    const idx = projects.findIndex(x => x.code === id);
+                    projects[idx] = updatedObj;
+                } else {
+                    projects.unshift(updatedObj);
+                }
+
+                save();
+                showToast(isEdit ? "Modification enregistrée" : "Projet créé avec succès");
+                navigate('detail', updatedObj.code);
+            } catch (err) {
+                alert("Erreur de format JSON : " + err.message);
+            }
+        }
+
+        function deleteProject(id) {
+            if (confirm("Êtes-vous sûr de vouloir supprimer définitivement ce projet ?")) {
+                projects = projects.filter(x => x.code !== id);
+                save();
+                showToast("Projet supprimé", "danger");
+                navigate('projects');
+            }
+        }
+
+        /* ==========================================
+           6. VUE DÉTAILLÉE (LECTURE)
+        ========================================== */
+        function renderDetail(id) {
+            const p = projects.find(x => x.code === id);
+            if (!p) return "Projet introuvable.";
+
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-10">
+                    <div>
+                        <button onclick="navigate('projects')" class="text-xs font-bold text-sky-500 mb-2 flex items-center hover:translate-x-[-4px] transition-transform">
+                            <i class="fas fa-arrow-left mr-2"></i> RETOUR AU PORTEFEUILLE
+                        </button>
+                        <h1 class="text-4xl font-black text-slate-900 leading-tight">${p.titre}</h1>
+                        <div class="flex items-center space-x-4 mt-3">
+                            <span class="bg-slate-200 text-slate-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">Création : ${formatDate(p.date_creation)}</span>
+                            <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">Dernière MAJ : ${formatDate(p.date_modification)}</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="navigate('edit', ${p.code})" class="btn-primary flex items-center"><i class="fas fa-pen-nib mr-2"></i> Éditer</button>
+                        <button onclick="deleteProject(${p.code})" class="btn-danger flex items-center"><i class="fas fa-trash-alt mr-2"></i> Supprimer</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-8 space-y-8">
+                        <div class="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm">
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Résumé du projet</h3>
+                            <p class="text-lg text-slate-700 leading-relaxed mb-8">${p.description}</p>
+                            <div class="grid grid-cols-2 gap-8 pt-8 border-t border-slate-50">
+                                <div><p class="label-style">Enjeux</p><p class="text-sm text-slate-600">${p.enjeux || 'Aucun.'}</p></div>
+                                <div><p class="label-style">Points de discussion</p><p class="text-sm text-slate-600 font-medium italic">"${p.discussion || 'N/A'}"</p></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm">
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">Chronologie des Jalons</h3>
+                            <div class="space-y-6">
+                                ${(p.jalons || []).map(j => `
+                                    <div class="flex items-center space-x-6 p-4 hover:bg-slate-50 rounded-2xl transition-colors">
+                                        <div class="w-16 text-center text-sky-500 font-black text-xs leading-none">
+                                            ${j.date_initiale.split('-')[1]}/${j.date_initiale.split('-')[0]}
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-bold text-slate-800">${j.description}</p>
+                                            <p class="text-[10px] font-bold text-slate-400 uppercase mt-1">Statut: ${j.statut}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-4 space-y-8">
+                        <div class="bg-slate-900 p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
+                            <div class="absolute -right-4 -top-4 w-24 h-24 bg-sky-500 opacity-20 blur-3xl"></div>
+                            <h3 class="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-6">Métadonnées Clés</h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between border-b border-slate-800 pb-2"><span class="text-[10px] text-slate-500 font-bold uppercase">Règlement</span><b class="text-xs">${p.reglement}</b></div>
+                                <div class="flex justify-between border-b border-slate-800 pb-2"><span class="text-[10px] text-slate-500 font-bold uppercase">Juridiction</span><b class="text-xs">${p.juridiction_principale}</b></div>
+                                <div class="flex justify-between border-b border-slate-800 pb-2"><span class="text-[10px] text-slate-500 font-bold uppercase">Priorité</span><b class="text-xs ${p.priorite==='élevé'?'text-rose-400':''}">${p.priorite}</b></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm">
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Équipe Assignée</h3>
+                            <div class="space-y-4">
+                                ${(p.Ressources_associees || []).map(r => `
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://i.pravatar.cc/100?u=${r.email}" class="w-10 h-10 rounded-xl">
+                                        <div><p class="text-xs font-bold">${r.prenom} ${r.nom}</p><p class="text-[10px] text-slate-400">${r.role}</p></div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /* UI HELPERS */
+        function showToast(m, type = "success") {
+            const t = document.createElement('div');
+            const bg = type === "success" ? "bg-emerald-500" : "bg-rose-500";
+            t.className = `${bg} text-white px-6 py-4 rounded-2xl shadow-2xl font-black text-xs uppercase animate-bounce-in`;
+            t.innerHTML = `<i class="fas ${type==='success'?'fa-check-circle':'fa-trash'} mr-3"></i> ${m}`;
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        function filterProjects() {
+            const q = document.getElementById('globalSearch').value.toLowerCase();
+            const grid = document.getElementById('projectGrid');
+            const filtered = projects.filter(p => p.titre.toLowerCase().includes(q) || p.code.toString().includes(q));
+            grid.innerHTML = filtered.map(p => `
+                <div onclick="navigate('detail', ${p.code})" class="bg-white p-7 rounded-[32px] border border-slate-200 hover:shadow-xl cursor-pointer">
+                    <h3 class="text-lg font-bold text-slate-800 mb-2">${p.titre}</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Code #${p.code}</p>
+                </div>
+            `).join('');
+        }
+
+        // Init
+        navigate('dashboard');
+    </script>
+
+    <style>
+        @keyframes bounce-in { 0% { transform: scale(0.9) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        .animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    </style>
+</body>
+</html>

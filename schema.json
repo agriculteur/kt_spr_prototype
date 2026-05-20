@@ -1,0 +1,133 @@
+[
+  {
+    "code": 1042,
+    "titre": "Mise à jour des normes de divulgation ESG",
+    "type_projet": "Réglementaire et Conformité",
+    "reglement": "Règlement 51-107",
+    "statut": "en cours",
+    "priorite": "élevé",
+    "loi": [
+      "Loi sur les valeurs mobilières (Québec)",
+      "Securities Act (Ontario)"
+    ],
+    "niveau_risque": "moyen",
+    "juridiction_principale": "Québec",
+    "direction_principale": "Direction des marchés des capitaux",
+    "direction_responsable": [
+      "Direction de l'information continue",
+      "Direction des affaires juridiques"
+    ],
+    "Ressources_associees": [
+      {
+        "photo": "https://example.com/photos/jdupont.jpg",
+        "prenom": "Jean",
+        "nom": "Dupont",
+        "email": "jean.dupont@autorite.qc.ca",
+        "role": "Chef de projet"
+      },
+      {
+        "photo": "https://example.com/photos/mleblanc.jpg",
+        "prenom": "Marie",
+        "nom": "Leblanc",
+        "email": "marie.leblanc@autorite.qc.ca",
+        "role": "Contributeur"
+      }
+    ],
+    "soutien_juridique": [
+      {
+        "photo": "https://example.com/photos/pbergeron.jpg",
+        "prenom": "Paul",
+        "nom": "Bergeron",
+        "email": "paul.bergeron@autorite.qc.ca",
+        "role": "Conseiller juridique"
+      }
+    ],
+    "Comite_ACVM": [
+      {
+        "prenom": "Sarah",
+        "nom": "Smith",
+        "email": "ssmith@osc.gov.on.ca",
+        "institution": "Commission des valeurs mobilières de l'Ontario (CVMO)"
+      }
+    ],
+    "groupe_de_travail": [
+      {
+        "prenom": "Luc",
+        "nom": "Tremblay",
+        "email": "luc.tremblay@autorite.qc.ca",
+        "institution": "AMF Québec"
+      },
+      {
+        "prenom": "David",
+        "nom": "Wong",
+        "email": "dwong@bcsc.bc.ca",
+        "institution": "British Columbia Securities Commission (BCSC)"
+      }
+    ],
+    "description": "Ce projet vise à harmoniser les obligations d'information liées aux changements climatiques et aux critères ESG pour les émetteurs assujettis, en alignement avec les nouvelles normes internationales de l'ISSB.",
+    "enjeux": "Forte résistance anticipée de la part des petits émetteurs concernant les coûts de conformité. Nécessité d'une coordination étroite avec les autres provinces canadiennes.",
+    "discussion": "Le dernier point de discussion a porté sur l'exemption potentielle pour les émetteurs émergents. Une décision doit être prise avant la prochaine publication pour consultation.",
+    "developpements_significatifs": [
+      {
+        "date_initiale": "2024-02-15",
+        "date_changement": [
+          "2024-02-15",
+          "2024-03-10"
+        ],
+        "description": "Publication du premier avis de consultation publique sur le Règlement 51-107.",
+        "statut": "Consultation terminée, analyse des commentaires en cours."
+      }
+    ],
+    "rencontres_approbations": [
+      {
+        "date_initiale": "2024-04-05",
+        "date_changement": [
+          "2024-04-05",
+          "2024-04-12"
+        ],
+        "description": "Rencontre de présentation au comité de direction pour approbation des modifications post-consultation.",
+        "statut": "Approuvé avec des modifications mineures."
+      }
+    ],
+    "jalons": [
+      {
+        "date_initiale": "2024-09-01",
+        "date_changement": [
+          "2024-09-01",
+          "2024-10-15"
+        ],
+        "description": "Entrée en vigueur prévue des nouvelles dispositions.",
+        "statut": "En attente de l'approbation ministérielle."
+      }
+    ],
+    "impact_système": true,
+    "impact_description": "Nécessite une mise à jour du système SEDAR+ pour inclure les nouveaux formulaires de déclaration ESG obligatoires.",
+    "documents": [
+      {
+        "titre": "Projet de Règlement 51-107 v2",
+        "type_document": "Texte réglementaire",
+        "lien": "https://sharepoint.interne/docs/reglement_51-107_v2.pdf",
+        "description": "Version consolidée incluant les commentaires de l'industrie.",
+        "chargement_date": "2024-03-20",
+        "chargement_par": "marie.leblanc@autorite.qc.ca"
+      },
+      {
+        "titre": "Synthèse des commentaires publics",
+        "type_document": "Rapport d'analyse",
+        "lien": "https://sharepoint.interne/docs/synthese_commentaires_ESG.docx",
+        "description": "Résumé des 45 lettres de commentaires reçues durant la période de consultation.",
+        "chargement_date": "2024-03-22",
+        "chargement_par": "jean.dupont@autorite.qc.ca"
+      }
+    ],
+    "media": [
+      {
+        "lien": "https://sharepoint.interne/media/presentation_ca.mp4",
+        "label": "Enregistrement vidéo de la présentation au Conseil d'Administration",
+        "chargement_date": "2024-04-13",
+        "chargement_par": "jean.dupont@autorite.qc.ca",
+        "auteur": "Équipe des communications"
+      }
+    ]
+  }
+]

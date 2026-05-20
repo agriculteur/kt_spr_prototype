@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPR Pro | Gestion de Projets Règlementaires</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .active-nav { background: #0ea5e9; color: white !important; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); }
+        .page-transition { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Toggle Sidebar Logic */
+        #sidebar { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @media (max-width: 768px) { .sidebar-closed { transform: translateX(-100%); } }
+    </style>
+</head>
+<body class="bg-slate-50 overflow-x-hidden">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-3"></div>
+    
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-gray-300 text-white sidebar-closed 
+    md:translate-x-0 shadow-2xl">  <div class="bg-white flex items-center justify-left">
+        <img class="w-48" src="data:image/png;base64,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" alt="Logo">
+    </div>      
+        <div class="flex flex-col h-full p-6">
+            <div class="flex items-center space-x-3 mb-12 px-2">                
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight text-amber-250">SPR <span class="text-sky-400"> Pro</span></span>
+                    <p class="text-[10px] text-black font-bold uppercase tracking-widest">Gestion et Suivi des projets règlementaires</p>
+                </div>
+            </div>
+
+            <nav class="flex-1 space-y-2">
+                <button onclick="navigate('dashboard')" id="nav-dashboard" class="flex items-center w-full p-3.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200 group">
+                    <i class="fas fa-grip-vertical w-6 mr-3 text-lg transition-transform group-hover:scale-110"></i>
+                    <span class="font-semibold text-sm">Tableau de Bord</span>
+                </button>
+                <button onclick="navigate('projects')" id="nav-projects" class="flex items-center w-full p-3.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200 group">
+                    <i class="fas fa-folder-tree w-6 mr-3 text-lg transition-transform group-hover:scale-110"></i>
+                    <span class="font-semibold text-sm">Répertoires des projets</span>
+                </button>
+            </nav>
+
+            <div class="hidden mt-auto pt-6 border-t border-slate-800">
+                <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div id="user-initials" class="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center font-bold text-white shadow-inner">V</div>
+                        <div class="overflow-hidden">
+                            <p id="user-name" class="text-xs font-bold truncate">Visiteur</p>
+                            <p class="text-[10px] text-sky-400 font-medium uppercase">Accès standard</p>
+                        </div>
+                    </div>
+                    <select id="userSelector" onchange="switchUser()" class="w-full bg-slate-900 border border-slate-700 text-white text-[11px] p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="visiteur@autorite.qc.ca">Mode Lecture</option>
+                        <option value="chef@autorite.qc.ca">Chef de Projet (Éditeur)</option>
+                        <option value="legal@autorite.qc.ca">Juridique (Éditeur)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="md:ml-72 min-h-screen flex flex-col">
+        <header class="glass sticky top-0 z-40 h-20 px-6 flex items-center justify-between border-b border-slate-200">
+            <button onclick="toggleSidebar()" class="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="flex-1 max-w-xl mx-4 hidden sm:block">
+                <div class="relative group">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors"></i>
+                    <input type="text" id="globalSearch" placeholder="Rechercher un code, un titre ou un règlement..." 
+                           class="w-full pl-12 pr-4 py-2.5 bg-slate-100 border-transparent border focus:border-sky-500 focus:bg-white rounded-2xl outline-none 
+                           transition-all text-sm"
+                           onkeyup="filterProjects()">
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <button class="relative w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 
+                transition-colors">
+                    <i class="far fa-bell"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
+                </button>
+            </div>
+        </header>
+
+        <main id="app-container" class="p-4 md:p-8 flex-1 page-transition">
+            </main>
+    </div>
+
+    <script>
+        /* ==========================================
+           1. CORE DATA & INITIALIZATION
+        ========================================== */
+        let projects = [];
+        let currentUser = "visiteur@autorite.qc.ca";
+
+        function initData() {
+            const stored = localStorage.getItem('app_projects');
+            if (!stored) {
+                // Génération de 50 projets basés sur le schéma complexe
+                projects = Array.from({ length: 50 }, (_, i) => ({
+                    code: 4000 + i,
+                    titre: i === 0 ? "Réforme de la Transparence Algorithmique" : `Projet Réglementaire ${4000 + i}`,
+                    type_projet: i % 2 === 0 ? "Modification Réglementaire" : "Nouvelle Norme",
+                    reglement: `REG-202${i}-X`,
+                    statut: ["en cours", "terminé", "en attente", "clos"][i % 4],
+                    priorite: ["faible", "moyen", "élevé"][i % 3],
+                    loi: ["Loi sur les valeurs mobilières", "Loi sur la protection du consommateur"],
+                    niveau_risque: ["élevé", "moyen", "faible"][i % 3],
+                    juridiction_principale: "Québec",
+                    direction_principale: "Direction de l'Innovation",
+                    direction_responsable: ["Encadrement des Marchés", "Affaires Juridiques"],
+                    Ressources_associees: [
+                        { photo: "https://i.pravatar.cc/150?u=1", prenom: "Marc", nom: "Durocher", email: "chef@autorite.qc.ca", role: "Chef de projet" },
+                        { photo: "https://i.pravatar.cc/150?u=2", prenom: "Elisa", nom: "Poirier", email: "legal@autorite.qc.ca", role: "Conseillère Juridique" }
+                    ],
+                    Comite_ACVM: [{ prenom: "Jean", nom: "Smith", email: "j.smith@acvm.ca", institution: "OSC" }],
+                    groupe_de_travail: [{ prenom: "Sarah", nom: "Tremblay", email: "s.t@amf.ca", institution: "AMF" }],
+                    description: "Ce projet définit les critères de transparence pour les systèmes d'IA utilisés dans le secteur financier.",
+                    enjeux: "Protection des secrets commerciaux vs transparence publique.",
+                    discussion: "Faut-il exiger le code source ou une simple documentation technique ?",
+                    jalons: [{ date_initiale: "2024-06-12", description: "Consultation Publique", statut: "En préparation" }],
+                    impact_système: i % 3 === 0,
+                    impact_description: "Mise à jour requise du registre des émetteurs.",
+                    documents: [{ titre: "Lignes Directrices.pdf", type_document: "PDF", lien: "#", chargement_date: "2024-01-15", chargement_par: "chef@autorite.qc.ca" }]
+                }));
+                localStorage.setItem('app_projects', JSON.stringify(projects));
+            } else {
+                projects = JSON.parse(stored);
+            }
+        }
+
+        /* ==========================================
+           2. NAVIGATION & UI LOGIC
+        ========================================== */
+        function navigate(view, params = null) {
+            const container = document.getElementById('app-container');
+            
+            // UI Active State
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-nav'));
+            const activeBtn = document.getElementById(`nav-${view}`);
+            if (activeBtn) activeBtn.classList.add('active-nav');
+
+            container.classList.remove('page-transition');
+            void container.offsetWidth; // Trigger reflow
+            container.classList.add('page-transition');
+
+            if (view === 'dashboard') container.innerHTML = renderDashboard();
+            if (view === 'projects') container.innerHTML = renderProjectList();
+            if (view === 'detail') container.innerHTML = renderProjectDetail(params);
+            if (view === 'edit') container.innerHTML = renderEditForm(params);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('sidebar-closed');
+        }
+
+        function showToast(msg, type = 'success') {
+            const id = Date.now();
+            const bg = type === 'success' ? 'bg-emerald-500' : 'bg-rose-500';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            
+            const toast = document.createElement('div');
+            toast.className = `${bg} text-white px-6 py-4 rounded-2xl shadow-xl flex items-center space-x-3 transform transition-all duration-300 animate-bounce-in`;
+            toast.innerHTML = `<i class="fas ${icon} text-lg"></i><span class="text-sm font-bold">${msg}</span>`;
+            
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function switchUser() {
+            currentUser = document.getElementById('userSelector').value;
+            const name = currentUser.split('@')[0];
+            document.getElementById('user-name').innerText = name.charAt(0).toUpperCase() + name.slice(1);
+            document.getElementById('user-initials').innerText = name.charAt(0).toUpperCase();
+            showToast(`Connecté en tant que ${name.toUpperCase()}`);
+            navigate('projects');
+        }
+
+        /* ==========================================
+           3. VIEW RENDERING (USER FRIENDLY)
+        ========================================== */
+        function renderDashboard() {
+            return `
+                <div class="mb-10">
+                    <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Tableau de Bord</h1>
+                    <p class="text-slate-500 mt-2 font-medium">Suivi en temps réel des projets réglementaires de la SMVD.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    ${kpiCard("Actifs", projects.filter(p=>p.statut==='en cours').length, "fa-rocket", "bg-sky-500")}
+                    ${kpiCard("Risques Élevés", projects.filter(p=>p.niveau_risque==='élevé').length, "fa-triangle-exclamation", "bg-rose-500")}
+                    ${kpiCard("Réglements", [...new Set(projects.map(p=>p.reglement))].length, "fa-gavel", "bg-amber-500")}
+                    ${kpiCard("Impact SI", projects.filter(p=>p.impact_système).length, "fa-microchip", "bg-indigo-500")}
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                        <h3 class="font-bold text-lg mb-6 flex items-center"><i class="fas fa-history mr-3 text-slate-400"></i>Activités récentes</h3>
+                        <div class="space-y-6">
+                            ${projects.slice(0, 4).map(p => `
+                                <div class="flex items-start space-x-4">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">${p.code}</div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-bold text-slate-800">${p.titre}</p>
+                                        <p class="text-xs text-slate-500">Mise à jour du statut vers : <span class="text-sky-600 font-bold uppercase">${p.statut}</span></p>
+                                    </div>
+                                    <span class="text-[10px] font-black text-slate-300">IL Y A 2H</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 text-white shadow-xl shadow-slate-200">
+                        <h3 class="font-bold text-lg mb-6">Répartition selon les priorités</h3>
+                        <div class="space-y-4">
+                            ${['élevé', 'moyen', 'faible'].map(pr => `
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold uppercase mb-2">
+                                        <span>${pr}</span>
+                                        <span>${Math.round((projects.filter(p=>p.priorite===pr).length / projects.length)*100)}%</span>
+                                    </div>
+                                    <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                        <div class="h-full ${pr==='élevé' ? 'bg-rose-500' : 'bg-sky-500'}" style="width: ${(projects.filter(p=>p.priorite===pr).length / projects.length)*100}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function kpiCard(label, val, icon, color) {
+            return `
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 rounded-2xl ${color} bg-opacity-10 flex items-center justify-center">
+                            <i class="fas ${icon} ${color.replace('bg-', 'text-')} text-xl"></i>
+                        </div>
+                        <span class="text-2xl font-black text-slate-900">${val}</span>
+                    </div>
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">${label}</p>
+                </div>`;
+        }
+
+        function renderProjectList() {
+            return `
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                    <div>
+                        <h1 class="text-3xl font-black text-slate-900">Projets & Lois</h1>
+                        <p class="text-slate-500 font-medium">Gérez le catalogue des initiatives réglementaires.</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button class="bg-sky-500 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-sky-500/20 hover:bg-sky-600 transition">
+                            <i class="fas fa-plus mr-2"></i>Nouveau Projet
+                        </button>
+                    </div>
+                </div>
+
+                <div id="projectGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    ${projects.map(p => renderProjectCard(p)).join('')}
+                </div>
+            `;
+        }
+
+        function renderProjectCard(p) {
+            const statusColors = {
+                'en cours': 'bg-sky-100 text-sky-700',
+                'terminé': 'bg-emerald-100 text-emerald-700',
+                'en attente': 'bg-amber-100 text-amber-700',
+                'clos': 'bg-slate-100 text-slate-500'
+            };
+            return `
+                <div onclick="navigate('detail', ${p.code})" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Code #${p.code}</span>
+                            <span class="text-xs font-bold text-sky-500">${p.reglement}</span>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${statusColors[p.statut]}">${p.statut}</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 group-hover:text-sky-600 transition mb-3 line-clamp-1">${p.titre}</h3>
+                    <p class="text-xs text-slate-500 font-medium line-clamp-2 mb-6 h-8">${p.description}</p>
+                    
+                    <div class="flex items-center justify-between pt-5 border-t border-slate-50">
+                        <div class="flex -space-x-3">
+                            ${p.Ressources_associees.slice(0, 3).map(r => `<img src="${r.photo}" class="w-8 h-8 rounded-full border-2 border-white shadow-sm" title="${r.prenom}">`).join('')}
+                        </div>
+                        <span class="text-[10px] font-black uppercase ${p.priorite==='élevé' ? 'text-rose-500' : 'text-slate-400'}"><i class="fas fa-flag mr-1"></i>${p.priorite}</span>
+                    </div>
+                </div>`;
+        }
+
+        function renderProjectDetail(code) {
+            const p = projects.find(x => x.code === code);
+            const isEditor = p.Ressources_associees.some(r => r.email === currentUser);
+
+            return `
+                <div class="flex flex-col lg:flex-row justify-between gap-6 mb-8">
+                    <div class="flex items-center space-x-6">
+                        <button onclick="navigate('projects')" class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-sky-500 transition-colors shadow-sm">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div>
+                            <div class="flex items-center space-x-3 mb-1">
+                                <span class="text-xs font-black text-sky-500 uppercase tracking-widest">${p.reglement}</span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                <span class="text-xs font-bold text-slate-400 uppercase">${p.type_projet}</span>
+                            </div>
+                            <h1 class="text-3xl font-black text-slate-900">${p.titre}</h1>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        ${isEditor ? `
+                            <button onclick="navigate('edit', ${p.code})" class="flex-1 lg:flex-none bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold text-sm shadow-lg hover:bg-slate-800 transition">
+                                <i class="fas fa-pen-nib mr-2"></i>Éditer
+                            </button>
+                        ` : `
+                            <div class="bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl flex items-center text-amber-700 text-xs font-bold">
+                                <i class="fas fa-lock mr-2"></i> Lecture seule pour ce profil
+                            </div>
+                        `}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-8 space-y-8">
+                        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-2 flex space-x-2">
+                            <button onclick="switchTab('context')" class="tab-btn active-tab flex-1 py-3 text-sm font-black uppercase rounded-2xl transition">Contexte</button>
+                            <button onclick="switchTab('legal')" class="tab-btn flex-1 py-3 text-sm font-black uppercase rounded-2xl transition">Légal & ACVM</button>
+                            <button onclick="switchTab('team')" class="tab-btn flex-1 py-3 text-sm font-black uppercase rounded-2xl transition">Équipe</button>
+                        </div>
+
+                        <div id="tab-context" class="tab-content space-y-8 animate-fadeIn">
+                            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                                <h3 class="font-black text-xs text-slate-400 uppercase tracking-widest mb-6">Résumé & Enjeux</h3>
+                                <p class="text-slate-700 leading-relaxed mb-8 text-lg">${p.description}</p>
+                                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-start space-x-4">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                                        <i class="fas fa-lightbulb"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Point de discussion</p>
+                                        <p class="text-sm font-medium text-slate-700 italic">"${p.discussion}"</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                                <h3 class="font-black text-xs text-slate-400 uppercase tracking-widest mb-8">Chronologie des Jalons</h3>
+                                <div class="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-100">
+                                    ${p.jalons.map(j => `
+                                        <div class="relative pl-12">
+                                            <div class="absolute left-0 top-0 w-10 h-10 rounded-full bg-white border-4 border-sky-500 flex items-center justify-center shadow-sm">
+                                                <i class="fas fa-check text-[10px] text-sky-500"></i>
+                                            </div>
+                                            <p class="text-[10px] font-black text-slate-400 uppercase mb-1">${j.date_initiale}</p>
+                                            <p class="font-bold text-slate-800">${j.description}</p>
+                                            <span class="inline-block mt-2 px-3 py-1 bg-sky-50 text-sky-600 text-[9px] font-black rounded-full uppercase italic">${j.statut}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-4 space-y-8">
+                        <div class="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden group">
+                            <div class="absolute -right-10 -top-10 w-40 h-40 bg-sky-500 rounded-full opacity-10 blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+                            <h3 class="font-black text-xs text-sky-400 uppercase tracking-widest mb-6">Gouvernance</h3>
+                            <div class="space-y-6">
+                                <div><p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Juridiction Principale</p><p class="text-sm font-bold">${p.juridiction_principale}</p></div>
+                                <div><p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Direction Responsable</p><p class="text-sm font-bold">${p.direction_principale}</p></div>
+                                <div>
+                                    <p class="text-[10px] text-slate-500 font-bold uppercase mb-3">Lois de référence</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${p.loi.map(l => `<span class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-[10px] font-medium">${l}</span>`).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${p.impact_système ? `
+                            <div class="bg-rose-50 border border-rose-100 rounded-3xl p-6">
+                                <div class="flex items-center space-x-3 text-rose-600 mb-3">
+                                    <i class="fas fa-microchip text-xl"></i>
+                                    <h4 class="font-black text-xs uppercase tracking-widest">Impact Système</h4>
+                                </div>
+                                <p class="text-sm text-rose-900 leading-relaxed font-medium">${p.impact_description}</p>
+                            </div>
+                        ` : ''}
+
+                        <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                            <h3 class="font-black text-xs text-slate-400 uppercase tracking-widest mb-6">Documents Externes</h3>
+                            <div class="space-y-3">
+                                ${p.documents.map(d => `
+                                    <div class="group flex items-center justify-between p-3 border border-slate-100 rounded-2xl hover:border-sky-300 hover:bg-sky-50 transition-all cursor-pointer">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl bg-slate-50 group-hover:bg-white flex items-center justify-center text-slate-400 group-hover:text-sky-500 transition-colors">
+                                                <i class="far fa-file-pdf text-lg"></i>
+                                            </div>
+                                            <div class="overflow-hidden">
+                                                <p class="text-xs font-bold text-slate-700 truncate">${d.titre}</p>
+                                                <p class="text-[9px] text-slate-400 font-bold uppercase">${d.chargement_date}</p>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-cloud-download-alt text-slate-300 group-hover:text-sky-500"></i>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /* Helpers UI */
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab', 'bg-slate-900', 'text-white'));
+            
+            const content = document.getElementById(`tab-${tabId}`);
+            if (content) content.classList.remove('hidden');
+            
+            event.currentTarget.classList.add('bg-slate-900', 'text-white');
+        }
+
+        function filterProjects() {
+            const query = document.getElementById('globalSearch').value.toLowerCase();
+            const grid = document.getElementById('projectGrid');
+            if (!grid) return;
+            
+            const filtered = projects.filter(p => 
+                p.titre.toLowerCase().includes(query) || 
+                p.code.toString().includes(query) || 
+                p.reglement.toLowerCase().includes(query)
+            );
+            
+            grid.innerHTML = filtered.map(p => renderProjectCard(p)).join('');
+        }
+
+        /* Initialisation Automatique */
+        document.addEventListener('DOMContentLoaded', () => {
+            initData();
+            navigate('dashboard');
+        });
+    </script>
+
+    <style>
+        .active-tab { background: #0f172a; color: white !important; }
+        @keyframes bounce-in { 
+            0% { transform: scale(0.9) translateY(10px); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    </style>
+</body>
+</html>

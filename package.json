@@ -1,0 +1,17 @@
+{
+  "name": "spr-regulatory-projects",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build:spa": "node scripts/build-spa.js",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "playwright:test": "playwright test"
+  },
+  "devDependencies": {
+    "cypress": "^12.0.0",
+    "@playwright/test": "^1.40.0",
+    "esbuild": "^0.18.17"
+  }
+}
