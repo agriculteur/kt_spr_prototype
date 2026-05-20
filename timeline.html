@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SPR Pro | Timeline</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
   <style>
     /* ── Variables ────────────────────────────────────── */
@@ -17,19 +17,39 @@
       --danger:    #ef4444;
       --success:   #22c55e;
       --warn:      #f59e0b;
-      --text:      #1e293b;
+      --text:      #0f172a;
+      --text-2:    #334155;
       --muted:     #64748b;
       --radius:    12px;
       --shadow:    0 4px 24px rgba(0,0,0,.07);
       --shadow-lg: 0 8px 40px rgba(0,0,0,.12);
       --line:      3px;
       --dot:       18px;
+
+      /* Typography scale */
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --text-xs:   .72rem;   /* 11.5px */
+      --text-sm:   .8125rem; /* 13px  */
+      --text-base: .9375rem; /* 15px  */
+      --text-lg:   1.0625rem;/* 17px  */
+      --text-xl:   1.25rem;  /* 20px  */
+      --lh-tight:  1.3;
+      --lh-snug:   1.45;
+      --lh-normal: 1.6;
+      --ls-wide:   .05em;
+      --ls-wider:  .08em;
     }
 
     /* ── Reset / Base ─────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-normal);
+      font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'ss01' 1;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
@@ -53,14 +73,15 @@
       box-shadow: 0 2px 12px rgba(0,0,0,.06);
     }
     .app-header h1 {
-      font-size: 1.15rem; font-weight: 700;
+      font-size: var(--text-lg); font-weight: 800;
+      letter-spacing: -.02em; line-height: var(--lh-tight);
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; gap: 10px;
     }
     .header-actions { display: flex; gap: 8px; align-items: center; }
 
-    .main-container { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+    .main-container { max-width: 1100px; margin: 0 auto; padding: 36px 20px 80px; }
 
     /* ── Toolbar ──────────────────────────────────────── */
     .toolbar {
@@ -73,8 +94,8 @@
     /* ── Buttons ──────────────────────────────────────── */
     .btn {
       display: inline-flex; align-items: center; gap: 7px;
-      padding: 8px 16px; border-radius: 8px; font-size: .85rem;
-      font-weight: 600; border: none; transition: all .18s;
+      padding: 8px 16px; border-radius: 8px; font-size: var(--text-sm);
+      font-weight: 600; letter-spacing: .01em; border: none; transition: all .18s;
       white-space: nowrap;
     }
     .btn-primary { background: var(--accent); color: #fff; }
@@ -110,6 +131,46 @@
       width: var(--line);
       background: linear-gradient(to bottom, var(--accent), var(--accent2));
       border-radius: 10px;
+    }
+
+    /* ── Timeline cap nodes (Début / Fin) ─────────────── */
+    .timeline-cap {
+      position: relative;
+      margin-left: 60px;
+      display: flex; align-items: center;
+      gap: 12px;
+      height: 36px;
+    }
+    .timeline-cap::before {
+      content: '';
+      position: absolute;
+      left: calc(-60px + 28px - 11px + var(--line)/2);
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 3px solid var(--surface);
+      z-index: 1;
+    }
+    .timeline-cap.cap-start { margin-bottom: 8px; }
+    .timeline-cap.cap-end   { margin-top: 8px; }
+
+    .timeline-cap.cap-start::before {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent), 0 0 12px rgba(14,165,233,.4);
+    }
+    .timeline-cap.cap-end::before {
+      background: var(--accent2);
+      box-shadow: 0 0 0 3px var(--accent2), 0 0 12px rgba(99,102,241,.4);
+    }
+    .cap-label {
+      font-size: var(--text-xs); font-weight: 800;
+      letter-spacing: var(--ls-wider); text-transform: uppercase; opacity: .5;
+    }
+    .cap-start .cap-label { color: var(--accent); }
+    .cap-end   .cap-label { color: var(--accent2); }
+
+    @media (max-width: 600px) {
+      .timeline-cap { margin-left: 40px; }
+      .timeline-cap::before { left: calc(-40px + 16px - 11px + var(--line)/2); }
     }
 
     /* ── Event card ───────────────────────────────────── */
@@ -150,33 +211,39 @@
     }
     .event-header-left { flex: 1; min-width: 0; }
     .event-label {
-      font-size: 1rem; font-weight: 700; color: var(--text);
-      margin-bottom: 6px; word-break: break-word;
+      font-size: var(--text-base); font-weight: 700;
+      letter-spacing: -.015em; line-height: var(--lh-tight);
+      color: var(--text); margin-bottom: 8px; word-break: break-word;
     }
     .event-dates {
-      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
     }
     .date-chip {
-      display: inline-flex; align-items: center; gap: 5px;
-      font-size: .74rem; font-weight: 500; padding: 3px 9px;
-      border-radius: 20px;
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      padding: 3px 9px; border-radius: 20px;
+      font-family: var(--font-mono); letter-spacing: .01em;
     }
     .date-chip.initial { background: #e0f2fe; color: #0369a1; }
-    .date-chip.real { background: #fef9c3; color: #854d0e; }
-    .date-chip.late { background: #fee2e2; color: #991b1b; }
-    .date-chip.early { background: #dcfce7; color: #166534; }
+    .date-chip.real    { background: #fef9c3; color: #854d0e; }
+    .date-chip.late    { background: #fee2e2; color: #991b1b; }
+    .date-chip.early   { background: #dcfce7; color: #166534; }
     .delta-badge {
-      font-size: .72rem; font-weight: 700; padding: 2px 8px;
-      border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); font-weight: 700;
+      font-variant-numeric: tabular-nums; letter-spacing: .01em;
+      padding: 2px 8px; border-radius: 20px;
+      display: inline-flex; align-items: center; gap: 4px;
     }
-    .delta-late { background: #fee2e2; color: #b91c1c; }
+    .delta-late  { background: #fee2e2; color: #b91c1c; }
     .delta-early { background: #dcfce7; color: #15803d; }
     .delta-exact { background: #f1f5f9; color: #475569; }
 
     .event-note {
-      padding: 0 18px 12px;
-      font-size: .82rem; color: var(--muted);
-      line-height: 1.55; border-top: 1px solid #f1f5f9; padding-top: 10px;
+      padding: 10px 20px 14px;
+      font-size: var(--text-sm); color: var(--muted);
+      line-height: var(--lh-normal);
+      border-top: 1px solid #f1f5f9;
     }
 
     .event-actions {
@@ -186,9 +253,11 @@
     /* ── Sub-events ───────────────────────────────────── */
     .sub-toggle {
       display: flex; align-items: center; gap: 8px;
-      padding: 10px 18px;
+      padding: 10px 20px;
       border-top: 1px solid var(--border);
-      font-size: .8rem; font-weight: 600; color: var(--muted);
+      font-size: var(--text-xs); font-weight: 700;
+      letter-spacing: var(--ls-wide); text-transform: uppercase;
+      color: var(--muted);
       cursor: pointer; user-select: none;
       transition: background .15s;
       border-radius: 0 0 var(--radius) var(--radius);
@@ -196,7 +265,9 @@
     .sub-toggle:hover { background: #f8fafc; }
     .sub-toggle .count-badge {
       background: var(--accent); color: #fff;
-      font-size: .7rem; padding: 1px 7px; border-radius: 10px;
+      font-size: var(--text-xs); font-weight: 700;
+      padding: 1px 8px; border-radius: 10px;
+      letter-spacing: 0; text-transform: none;
     }
     .sub-toggle .chevron { margin-left: auto; transition: transform .2s; }
     .sub-toggle.open .chevron { transform: rotate(180deg); }
@@ -228,16 +299,23 @@
     .s4 { background: var(--success); }
 
     .sub-info { flex: 1; min-width: 0; }
-    .sub-label { font-size: .85rem; font-weight: 600; word-break: break-word; }
-    .sub-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .sub-label {
+      font-size: var(--text-sm); font-weight: 600;
+      letter-spacing: -.01em; line-height: var(--lh-snug);
+      color: var(--text-2); word-break: break-word;
+    }
+    .sub-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
     .sub-status-badge {
-      font-size: .7rem; font-weight: 600; padding: 2px 8px;
+      font-size: var(--text-xs); font-weight: 700;
+      letter-spacing: .02em; padding: 2px 8px;
       border-radius: 10px;
     }
     .s1-bg { background: #f1f5f9; color: #475569; }
     .s2-bg { background: #fef3c7; color: #92400e; }
     .s3-bg { background: #e0f2fe; color: #075985; }
     .s4-bg { background: #dcfce7; color: #166534; }
+    .sr    { background: var(--danger); }
+    .sr-bg { background: #fee2e2; color: #991b1b; }
 
     .sub-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
@@ -282,7 +360,7 @@
       padding: 20px 24px 16px;
       border-bottom: 1px solid var(--border);
     }
-    .modal-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .modal-header h2 { font-size: var(--text-base); font-weight: 700; letter-spacing: -.02em; }
     .modal-close {
       width: 32px; height: 32px; border-radius: 8px;
       border: none; background: #f1f5f9; color: var(--muted);
@@ -299,19 +377,21 @@
     }
 
     /* ── Form ─────────────────────────────────────────── */
-    .form-group { margin-bottom: 16px; }
+    .form-group { margin-bottom: 18px; }
     .form-label {
-      display: block; font-size: .8rem; font-weight: 600;
-      color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em;
+      display: block; font-size: var(--text-xs); font-weight: 700;
+      color: var(--muted); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: var(--ls-wider);
     }
     .form-control {
-      width: 100%; padding: 9px 12px;
+      width: 100%; padding: 9px 13px;
       border: 1.5px solid var(--border); border-radius: 8px;
-      font-size: .88rem; background: var(--surface); color: var(--text);
+      font-size: var(--text-sm); line-height: var(--lh-snug);
+      background: var(--surface); color: var(--text);
       outline: none; transition: border-color .18s, box-shadow .18s;
     }
     .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14,165,233,.12); }
-    textarea.form-control { resize: vertical; min-height: 80px; }
+    textarea.form-control { resize: vertical; min-height: 80px; line-height: var(--lh-normal); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     /* ── Confirm dialog ───────────────────────────────── */
@@ -320,7 +400,7 @@
     .confirm-modal .confirm-icon {
       font-size: 2.2rem; color: var(--danger); margin-bottom: 14px;
     }
-    .confirm-modal p { color: var(--muted); font-size: .88rem; }
+    .confirm-modal p { color: var(--muted); font-size: var(--text-sm); line-height: var(--lh-normal); }
 
     /* ── Toast ────────────────────────────────────────── */
     .toast-container {
@@ -329,8 +409,8 @@
     }
     .toast {
       background: #1e293b; color: #fff;
-      padding: 12px 18px; border-radius: 10px;
-      font-size: .84rem; font-weight: 500;
+      padding: 11px 18px; border-radius: 10px;
+      font-size: var(--text-sm); font-weight: 500; letter-spacing: .01em;
       box-shadow: var(--shadow-lg);
       display: flex; align-items: center; gap: 10px;
       animation: toastIn .3s ease, toastOut .3s ease 2.5s forwards;
@@ -347,17 +427,20 @@
     /* ── Status legend ────────────────────────────────── */
     .legend {
       display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-      padding: 12px 18px; background: var(--surface);
+      padding: 11px 18px; background: var(--surface);
       border-radius: var(--radius); border: 1.5px solid var(--border);
-      margin-bottom: 24px; font-size: .78rem; color: var(--muted);
+      margin-bottom: 24px;
+      font-size: var(--text-xs); color: var(--muted);
+      letter-spacing: .01em;
     }
-    .legend-item { display: flex; align-items: center; gap: 5px; font-weight: 500; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-weight: 600; }
 
     /* ── Filter chips ─────────────────────────────────── */
     .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
     .chip {
       padding: 5px 14px; border-radius: 20px;
-      font-size: .78rem; font-weight: 600; cursor: pointer;
+      font-size: var(--text-xs); font-weight: 700;
+      letter-spacing: .02em; cursor: pointer;
       border: 1.5px solid var(--border); background: var(--surface);
       color: var(--muted); transition: all .15s;
     }
@@ -373,8 +456,8 @@
       border: 1.5px solid var(--border); padding: 14px 16px;
       text-align: center;
     }
-    .stat-card .val { font-size: 1.5rem; font-weight: 800; }
-    .stat-card .lbl { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .stat-card .val { font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+    .stat-card .lbl { font-size: var(--text-xs); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: var(--ls-wider); margin-top: 4px; }
     .stat-accent  { color: var(--accent); }
     .stat-danger  { color: var(--danger); }
     .stat-success { color: var(--success); }
@@ -393,6 +476,84 @@
       .search-box { flex: 1; }
       .app-header { padding: 0 14px; }
     }
+
+    /* ── Date history badge & popover ────────────────── */
+    .history-wrap {
+      position: relative; display: inline-flex; align-items: center;
+    }
+    .history-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 17px; height: 17px; border-radius: 50%;
+      background: var(--warn); color: #fff;
+      font-size: .62rem; font-weight: 800;
+      margin-left: 4px; cursor: pointer;
+      vertical-align: middle;
+      transition: transform .15s;
+      flex-shrink: 0;
+    }
+    .history-badge:hover { transform: scale(1.2); }
+
+    .history-popover {
+      position: absolute; z-index: 300;
+      top: calc(100% + 8px); left: 0;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow-lg);
+      min-width: 240px; max-width: 320px;
+      padding: 12px 14px;
+      display: none;
+      animation: slideIn .18s ease;
+    }
+    .history-popover.open { display: block; }
+    .history-popover h4 {
+      font-size: var(--text-xs); font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: var(--ls-wider);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .history-entry {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0; border-top: 1px solid #f1f5f9;
+      font-size: var(--text-xs);
+    }
+    .history-entry:first-of-type { border-top: none; }
+    .history-entry .h-idx {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #f1f5f9; color: var(--muted);
+      font-size: var(--text-xs); font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .history-entry .h-date { font-weight: 700; color: var(--text); font-family: var(--font-mono); letter-spacing: .01em; }
+    .history-entry .h-when { color: var(--muted); font-size: var(--text-xs); margin-left: auto; }
+
+    /* ── Mode toggle ──────────────────────────────────── */
+    .mode-toggle {
+      display: inline-flex; align-items: center;
+      background: #f1f5f9; border-radius: 10px; padding: 3px;
+      gap: 2px; border: 1.5px solid var(--border);
+    }
+    .mode-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 7px;
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: .02em;
+      border: none; background: transparent; color: var(--muted);
+      transition: all .18s; cursor: pointer; white-space: nowrap;
+    }
+    .mode-btn.active {
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 1px 6px rgba(0,0,0,.10);
+    }
+    .mode-btn.active.edit-mode-btn  { color: var(--accent2); }
+    .mode-btn.active.read-mode-btn  { color: var(--success); }
+
+    /* read-only: hide every edit control */
+    body.read-only .edit-only { display: none !important; }
+    body.read-only .event-card { cursor: default; }
+    body.read-only .event-card:hover { transform: none; }
+    body.read-only .sub-item:hover { background: transparent; }
+
 
     /* ── Export btn ───────────────────────────────────── */
     .export-menu {
@@ -425,7 +586,18 @@
       <i class="fas fa-search"></i>
       <input type="text" id="searchInput" placeholder="Rechercher…" oninput="renderTimeline()" />
     </div>
-    <div class="export-menu" id="exportMenu">
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle" id="modeToggle">
+      <button class="mode-btn read-mode-btn active" id="btnRead" onclick="setMode('read')">
+        <i class="fas fa-eye"></i><span class="hide-xs">Lecture</span>
+      </button>
+      <button class="mode-btn edit-mode-btn" id="btnEdit" onclick="setMode('edit')">
+        <i class="fas fa-pen-to-square"></i><span class="hide-xs">Édition</span>
+      </button>
+    </div>
+
+    <div class="export-menu edit-only" id="exportMenu">
       <button class="btn btn-ghost btn-sm" onclick="toggleExport(event)">
         <i class="fas fa-download"></i><span class="hide-xs">Export</span>
       </button>
@@ -434,10 +606,10 @@
         <div class="export-option" onclick="exportCSV()"><i class="fas fa-file-csv"></i> CSV</div>
       </div>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="importJSON()" title="Importer JSON">
+    <button class="btn btn-ghost btn-sm edit-only" onclick="importJSON()" title="Importer JSON">
       <i class="fas fa-upload"></i>
     </button>
-    <button class="btn btn-primary btn-sm" onclick="openEventModal()">
+    <button class="btn btn-primary btn-sm edit-only" onclick="openEventModal()">
       <i class="fas fa-plus"></i><span class="hide-xs">Événement</span>
     </button>
   </div>
@@ -460,6 +632,9 @@
       </div>
     </div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" id="dirBtn" onclick="toggleDir()" title="Inverser l'ordre">
+        <i class="fas fa-arrow-down-1-9"></i>
+      </button>
       <button class="btn btn-ghost btn-sm" onclick="expandAll(true)"><i class="fas fa-expand-alt"></i></button>
       <button class="btn btn-ghost btn-sm" onclick="expandAll(false)"><i class="fas fa-compress-alt"></i></button>
       <select class="form-control" style="width:auto;padding:7px 10px;font-size:.8rem" onchange="sortEvents(this.value)">
@@ -511,6 +686,15 @@
           <label class="form-label">Date réelle</label>
           <input class="form-control" id="evDateReal" type="date" />
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Statut</label>
+        <select class="form-control" id="evStatus">
+          <option value="statut1">Non démarré</option>
+          <option value="statut2">En cours</option>
+          <option value="statut3">En révision</option>
+          <option value="statut4">Terminé</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Note</label>
@@ -670,14 +854,19 @@ async function getEvents() {
 let events  = [];          // flat array from DB (dates as ISO strings internally)
 let filter  = 'all';
 let sortKey = 'date_initiale';
+let sortDir = 'asc';       // 'asc' = Début→Fin, 'desc' = Fin→Début
 
 /* ─── Helpers ───────────────────────────────────────── */
 function uid()   { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function toISO(d){ return d || null; }
 
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
 function daysDiff(a, b) {
-  if (!a || !b) return null;
-  return Math.round((new Date(b) - new Date(a)) / 86400000);
+  if (!a) return null;
+  // if b (date_reelle) is missing, compare against today
+  const ref = b || TODAY_ISO;
+  return Math.round((new Date(ref) - new Date(a)) / 86400000);
 }
 
 function fmtDate(iso) {
@@ -702,12 +891,91 @@ const STATUS_LABELS = {
 const STATUS_DOT = { statut1:'s1', statut2:'s2', statut3:'s3', statut4:'s4' };
 const STATUS_BG  = { statut1:'s1-bg', statut2:'s2-bg', statut3:'s3-bg', statut4:'s4-bg' };
 
+const DONE_STATUSES = new Set(['statut4']);
+
+function isEffectivelyLate(obj) {
+  if (DONE_STATUSES.has(obj.status)) return false;
+  return daysDiff(obj.date_initiale, obj.date_reelle) > 0;
+}
+
+function effectiveStatus(obj) {
+  if (!DONE_STATUSES.has(obj.status) && isEffectivelyLate(obj))
+    return 'retard';
+  return obj.status || 'statut1';
+}
+
 function getOverdueClass(ev) {
   const d = daysDiff(ev.date_initiale, ev.date_reelle);
   if (d === null) return '';
-  if (d > 0)  return 'overdue';
-  if (d <= 0) return 'on-time';
+  if (isEffectivelyLate(ev)) return 'overdue';
+  if (d <= 0)                return 'on-time';
   return '';
+}
+
+/* ─── History badge helper ──────────────────────────── */
+function fmtRelative(isoStr) {
+  const diff = Math.round((Date.now() - new Date(isoStr)) / 60000);
+  if (diff < 1)    return 'à l\'instant';
+  if (diff < 60)   return `il y a ${diff} min`;
+  const h = Math.round(diff / 60);
+  if (h < 24)      return `il y a ${h}h`;
+  const d = Math.round(h / 24);
+  if (d < 30)      return `il y a ${d}j`;
+  const m = Math.round(d / 30);
+  return `il y a ${m} mois`;
+}
+
+function historyBadgeHtml(obj, uid) {
+  const hist = obj.date_reelle_history;
+  if (!hist || hist.length === 0) return '';
+  const popId = `hist-${uid}`;
+  const entries = hist.map((h, i) => `
+    <div class="history-entry">
+      <span class="h-idx">${i + 1}</span>
+      <span class="h-date">${fmtDate(h.date)}</span>
+      <span class="h-when">${fmtRelative(h.changed_at)}</span>
+    </div>`).join('');
+  return `
+    <span class="history-wrap">
+      <span class="history-badge" onclick="toggleHistoryPop('${popId}',event)" title="${hist.length} modification(s) de la date réelle">${hist.length}</span>
+      <div class="history-popover" id="${popId}">
+        <h4><i class="fas fa-history"></i> Historique date réelle</h4>
+        ${entries}
+        <div class="history-entry" style="border-top:1px solid #f1f5f9;margin-top:4px;padding-top:6px">
+          <span class="h-idx" style="background:var(--accent);color:#fff">${hist.length + 1}</span>
+          <span class="h-date" style="color:var(--accent)">${fmtDate(obj.date_reelle)} <em style="font-weight:400;font-size:.7rem">(actuelle)</em></span>
+        </div>
+      </div>
+    </span>`;
+}
+
+function toggleHistoryPop(id, e) {
+  e.stopPropagation();
+  const el = document.getElementById(id);
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.history-popover.open').forEach(p => p.classList.remove('open'));
+  if (!isOpen) el.classList.add('open');
+}
+document.addEventListener('click', () =>
+  document.querySelectorAll('.history-popover.open').forEach(p => p.classList.remove('open'))
+);
+
+/* ─── Sort ──────────────────────────────────────────── */
+function sortList(list, key) {
+  if (key === 'label') {
+    const sorted = [...list].sort((a, b) => a.label.localeCompare(b.label));
+    return sortDir === 'desc' ? sorted.reverse() : sorted;
+  }
+  // Date sort: dated items sorted chronologically, undated keep insertion order at the end.
+  const dated   = list.filter(e => e[key]);
+  const undated = list.filter(e => !e[key]);
+  dated.sort((a, b) => a[key].localeCompare(b[key]));
+  if (sortDir === 'desc') {
+    dated.reverse();
+    undated.reverse();
+    return [...undated, ...dated];   // undated at top when reversed, dated below
+  }
+  return [...dated, ...undated];
 }
 
 /* ─── Render ────────────────────────────────────────── */
@@ -729,12 +997,9 @@ function renderTimeline() {
     (e.sub || []).some(s => s.label.toLowerCase().includes(q))
   );
 
-  // sort
-  list.sort((a, b) => {
-    if (sortKey === 'label') return a.label.localeCompare(b.label);
-    const av = a[sortKey] || ''; const bv = b[sortKey] || '';
-    return av.localeCompare(bv);
-  });
+  // sort — items without a date value keep their original insertion order,
+  // placed after all dated items (stable: preserve relative index among nulls)
+  list = sortList(list, sortKey);
 
   if (list.length === 0) {
     wrap.innerHTML = `<div class="empty-state">
@@ -745,13 +1010,21 @@ function renderTimeline() {
     return;
   }
 
-  wrap.innerHTML = list.map(ev => renderEvent(ev)).join('');
+  const capDebut = `<div class="timeline-cap cap-start"><span class="cap-label">Début</span></div>`;
+  const capFin   = `<div class="timeline-cap cap-end"><span class="cap-label">Fin</span></div>`;
+  const [capTop, capBot] = sortDir === 'asc' ? [capDebut, capFin] : [capFin, capDebut];
+  wrap.innerHTML = capTop + list.map(ev => renderEvent(ev)).join('') + capBot;
   renderStats();
 }
+
+const STATUS_LABELS_EXT = { ...STATUS_LABELS, retard: 'En retard' };
+const STATUS_DOT_EXT    = { ...STATUS_DOT,    retard: 'sr' };
+const STATUS_BG_EXT     = { ...STATUS_BG,     retard: 'sr-bg' };
 
 function renderEvent(ev) {
   const delta = fmtDelta(daysDiff(ev.date_initiale, ev.date_reelle));
   const odClass = getOverdueClass(ev);
+  const effStatus = effectiveStatus(ev);
   const subs = ev.sub || [];
 
   const noteHtml = ev.note
@@ -768,7 +1041,7 @@ function renderEvent(ev) {
     </div>
     <div class="sub-list" id="sublist-${ev.id}">
       ${subItems}
-      <div class="add-sub-row">
+      <div class="add-sub-row edit-only">
         <button class="btn btn-ghost btn-sm" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i> Sous-événement</button>
       </div>
     </div>
@@ -776,7 +1049,7 @@ function renderEvent(ev) {
     <div class="sub-toggle" style="cursor:default;border-top:1px solid var(--border)">
       <i class="fas fa-sitemap" style="color:#e2e8f0"></i>
       <span style="opacity:.5">Aucun sous-événement</span>
-      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i></button>
+      <button class="btn btn-ghost btn-sm edit-only" style="margin-left:auto" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i></button>
     </div>
   `;
 
@@ -787,11 +1060,14 @@ function renderEvent(ev) {
         <div class="event-label">${escHtml(ev.label)}</div>
         <div class="event-dates">
           <span class="date-chip initial"><i class="fas fa-calendar"></i>${fmtDate(ev.date_initiale)}</span>
-          ${ev.date_reelle ? `<span class="date-chip ${daysDiff(ev.date_initiale, ev.date_reelle) > 0 ? 'late' : 'early'}"><i class="fas fa-calendar-check"></i>${fmtDate(ev.date_reelle)}</span>` : ''}
+          ${ev.date_reelle
+            ? `<span class="date-chip ${daysDiff(ev.date_initiale, ev.date_reelle) > 0 ? 'late' : 'early'}"><i class="fas fa-calendar-check"></i>${fmtDate(ev.date_reelle)}${historyBadgeHtml(ev, ev.id)}</span>`
+            : isEffectivelyLate(ev) ? `<span class="date-chip late" title="Basé sur la date du jour"><i class="fas fa-calendar-day"></i>Aujourd'hui</span>` : ''}
           ${delta}
+          ${effStatus === 'retard' ? `<span class="sub-status-badge sr-bg"><i class="fas fa-triangle-exclamation"></i> En retard</span>` : ''}
         </div>
       </div>
-      <div class="event-actions">
+      <div class="event-actions edit-only">
         <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" onclick="openEventModal('${ev.id}')">
           <i class="fas fa-pen" style="color:var(--accent)"></i>
         </button>
@@ -807,20 +1083,23 @@ function renderEvent(ev) {
 
 function renderSub(evId, s) {
   const delta = fmtDelta(daysDiff(s.date_initiale, s.date_reelle));
+  const effS  = effectiveStatus(s);
   return `
   <div class="sub-item" id="sub-${evId}-${s.id}">
-    <span class="status-dot ${STATUS_DOT[s.status] || 's1'}"></span>
+    <span class="status-dot ${STATUS_DOT_EXT[effS] || 's1'}"></span>
     <div class="sub-info">
       <div class="sub-label">${escHtml(s.label)}</div>
       <div class="sub-meta">
         <span class="date-chip initial" style="font-size:.7rem"><i class="fas fa-calendar"></i>${fmtDate(s.date_initiale)}</span>
-        ${s.date_reelle ? `<span class="date-chip ${daysDiff(s.date_initiale, s.date_reelle) > 0 ? 'late' : 'early'}" style="font-size:.7rem"><i class="fas fa-calendar-check"></i>${fmtDate(s.date_reelle)}</span>` : ''}
+        ${s.date_reelle
+          ? `<span class="date-chip ${daysDiff(s.date_initiale, s.date_reelle) > 0 ? 'late' : 'early'}" style="font-size:.7rem"><i class="fas fa-calendar-check"></i>${fmtDate(s.date_reelle)}${historyBadgeHtml(s, evId + '-' + s.id)}</span>`
+          : isEffectivelyLate(s) ? `<span class="date-chip late" style="font-size:.7rem" title="Basé sur la date du jour"><i class="fas fa-calendar-day"></i>Aujourd'hui</span>` : ''}
         ${delta}
-        <span class="sub-status-badge ${STATUS_BG[s.status] || 's1-bg'}">${STATUS_LABELS[s.status] || s.status}</span>
+        <span class="sub-status-badge ${STATUS_BG_EXT[effS] || 's1-bg'}">${STATUS_LABELS_EXT[effS] || s.status}</span>
       </div>
       ${s.note ? `<div style="font-size:.75rem;color:var(--muted);margin-top:4px">${escHtml(s.note)}</div>` : ''}
     </div>
-    <div class="sub-actions">
+    <div class="sub-actions edit-only">
       <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" onclick="openSubModal('${evId}','${s.id}')">
         <i class="fas fa-pen" style="color:var(--accent2)"></i>
       </button>
@@ -833,8 +1112,8 @@ function renderSub(evId, s) {
 
 function renderStats() {
   const total   = events.length;
-  const overdue = events.filter(e => daysDiff(e.date_initiale, e.date_reelle) > 0).length;
-  const ontime  = events.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0; }).length;
+  const overdue = events.filter(e => isEffectivelyLate(e)).length;
+  const ontime  = events.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0 && !isEffectivelyLate(e); }).length;
   const subs    = events.reduce((a, e) => a + (e.sub || []).length, 0);
   document.getElementById('statsBar').innerHTML = `
     <div class="stat-card"><div class="val stat-accent">${total}</div><div class="lbl">Événements</div></div>
@@ -862,6 +1141,22 @@ function expandAll(open) {
   });
 }
 
+/* ─── Mode (read / edit) ────────────────────────────── */
+let currentMode = 'read';
+
+function setMode(mode) {
+  currentMode = mode;
+  if (mode === 'read') {
+    document.body.classList.add('read-only');
+    document.getElementById('btnRead').classList.add('active');
+    document.getElementById('btnEdit').classList.remove('active');
+  } else {
+    document.body.classList.remove('read-only');
+    document.getElementById('btnEdit').classList.add('active');
+    document.getElementById('btnRead').classList.remove('active');
+  }
+}
+
 /* ─── Filter / sort ─────────────────────────────────── */
 function setFilter(f, el) {
   filter = f;
@@ -871,6 +1166,15 @@ function setFilter(f, el) {
 }
 function sortEvents(key) {
   sortKey = key;
+  renderTimeline();
+}
+function toggleDir() {
+  sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  const btn = document.getElementById('dirBtn');
+  btn.innerHTML = sortDir === 'asc'
+    ? '<i class="fas fa-arrow-down-1-9"></i>'
+    : '<i class="fas fa-arrow-up-9-1"></i>';
+  btn.title = sortDir === 'asc' ? 'Ordre croissant' : 'Ordre decroissant';
   renderTimeline();
 }
 
@@ -896,6 +1200,7 @@ function openEventModal(id) {
   document.getElementById('evLabel').value    = ev ? ev.label         : '';
   document.getElementById('evDateInit').value = ev ? (ev.date_initiale || '') : '';
   document.getElementById('evDateReal').value = ev ? (ev.date_reelle   || '') : '';
+  document.getElementById('evStatus').value   = ev ? (ev.status        || 'statut1') : 'statut1';
   document.getElementById('evNote').value     = ev ? (ev.note          || '') : '';
   openModal('eventModal');
   setTimeout(() => document.getElementById('evLabel').focus(), 50);
@@ -905,6 +1210,7 @@ async function saveEvent() {
   const label    = document.getElementById('evLabel').value.trim();
   const dateInit = document.getElementById('evDateInit').value;
   const dateReal = document.getElementById('evDateReal').value;
+  const status   = document.getElementById('evStatus').value;
   const note     = document.getElementById('evNote').value.trim();
 
   if (!label)    { shake('evLabel'); return; }
@@ -912,11 +1218,16 @@ async function saveEvent() {
 
   if (editingEventId) {
     const ev = events.find(e => e.id === editingEventId);
-    Object.assign(ev, { label, date_initiale: dateInit, date_reelle: dateReal || null, note });
+    const newReal = dateReal || null;
+    if (newReal !== ev.date_reelle) {
+      if (!ev.date_reelle_history) ev.date_reelle_history = [];
+      if (ev.date_reelle) ev.date_reelle_history.push({ date: ev.date_reelle, changed_at: new Date().toISOString() });
+    }
+    Object.assign(ev, { label, date_initiale: dateInit, date_reelle: newReal, status, note });
     await dbPut(ev);
     toast('Événement mis à jour', 'success');
   } else {
-    const ev = { id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, note, sub: [] };
+    const ev = { id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, status, note, date_reelle_history: [], sub: [] };
     events.push(ev);
     await dbPut(ev);
     toast('Événement créé', 'success');
@@ -974,10 +1285,15 @@ async function saveSub() {
 
   if (editingSubId) {
     const sub = ev.sub.find(s => s.id === editingSubId);
-    Object.assign(sub, { label, date_initiale: dateInit, date_reelle: dateReal || null, status, note });
+    const newReal = dateReal || null;
+    if (newReal !== sub.date_reelle) {
+      if (!sub.date_reelle_history) sub.date_reelle_history = [];
+      if (sub.date_reelle) sub.date_reelle_history.push({ date: sub.date_reelle, changed_at: new Date().toISOString() });
+    }
+    Object.assign(sub, { label, date_initiale: dateInit, date_reelle: newReal, status, note });
     toast('Sous-événement mis à jour', 'success');
   } else {
-    ev.sub.push({ id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, status, note });
+    ev.sub.push({ id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, status, note, date_reelle_history: [] });
     toast('Sous-événement créé', 'success');
   }
   await dbPut(ev);
@@ -1159,6 +1475,7 @@ async function init() {
   } else {
     events = stored;
   }
+  setMode('read');   // start in read-only mode
   renderTimeline();
 }
 
