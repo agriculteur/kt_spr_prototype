@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPR Pro | Timeline</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    /* ── Variables ────────────────────────────────────── */
+    :root {
+      --bg:        #f0f4f9;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --accent:    #0ea5e9;
+      --accent2:   #6366f1;
+      --danger:    #ef4444;
+      --success:   #22c55e;
+      --warn:      #f59e0b;
+      --text:      #1e293b;
+      --muted:     #64748b;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,.12);
+      --line:      3px;
+      --dot:       18px;
+    }
+
+    /* ── Reset / Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, textarea, select { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .app-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 62px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    }
+    .app-header h1 {
+      font-size: 1.15rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    .main-container { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+    /* ── Toolbar ──────────────────────────────────────── */
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      align-items: center; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .toolbar-left { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── Buttons ──────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 16px; border-radius: 8px; font-size: .85rem;
+      font-weight: 600; border: none; transition: all .18s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #0284c7; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(14,165,233,.35); }
+    .btn-secondary { background: var(--accent2); color: #fff; }
+    .btn-secondary:hover { background: #4f46e5; transform: translateY(-1px); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+    .btn-ghost:hover { background: var(--border); color: var(--text); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 5px 10px; font-size: .78rem; border-radius: 6px; }
+    .btn-icon { padding: 7px; border-radius: 8px; }
+
+    /* ── Search ───────────────────────────────────────── */
+    .search-box {
+      position: relative; display: flex; align-items: center;
+    }
+    .search-box i { position: absolute; left: 10px; color: var(--muted); font-size: .8rem; }
+    .search-box input {
+      padding: 8px 12px 8px 30px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: .85rem; width: 200px; background: var(--surface);
+      transition: all .2s; outline: none;
+    }
+    .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14,165,233,.12); width: 250px; }
+
+    /* ── Timeline wrapper ─────────────────────────────── */
+    .timeline-wrapper { position: relative; }
+
+    /* central vertical line */
+    .timeline-wrapper::before {
+      content: '';
+      position: absolute; left: 28px; top: 0; bottom: 0;
+      width: var(--line);
+      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      border-radius: 10px;
+    }
+
+    /* ── Event card ───────────────────────────────────── */
+    .event-card {
+      position: relative;
+      margin-left: 60px;
+      margin-bottom: 20px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1.5px solid var(--border);
+      transition: box-shadow .2s, transform .2s;
+      animation: slideIn .3s ease;
+    }
+    .event-card:hover { box-shadow: var(--shadow-lg); transform: translateX(2px); }
+
+    /* dot on the line */
+    .event-card::before {
+      content: '';
+      position: absolute;
+      left: calc(-60px + 28px - var(--dot)/2 + var(--line)/2);
+      top: 22px;
+      width: var(--dot); height: var(--dot);
+      border-radius: 50%;
+      border: 3px solid var(--surface);
+      box-shadow: 0 0 0 2px var(--accent);
+      background: var(--accent);
+      z-index: 1;
+      transition: background .2s;
+    }
+    .event-card.overdue::before { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+    .event-card.on-time::before { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+
+    .event-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 16px 18px 12px;
+      gap: 12px;
+    }
+    .event-header-left { flex: 1; min-width: 0; }
+    .event-label {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      margin-bottom: 6px; word-break: break-word;
+    }
+    .event-dates {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .date-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .74rem; font-weight: 500; padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .date-chip.initial { background: #e0f2fe; color: #0369a1; }
+    .date-chip.real { background: #fef9c3; color: #854d0e; }
+    .date-chip.late { background: #fee2e2; color: #991b1b; }
+    .date-chip.early { background: #dcfce7; color: #166534; }
+    .delta-badge {
+      font-size: .72rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .delta-late { background: #fee2e2; color: #b91c1c; }
+    .delta-early { background: #dcfce7; color: #15803d; }
+    .delta-exact { background: #f1f5f9; color: #475569; }
+
+    .event-note {
+      padding: 0 18px 12px;
+      font-size: .82rem; color: var(--muted);
+      line-height: 1.55; border-top: 1px solid #f1f5f9; padding-top: 10px;
+    }
+
+    .event-actions {
+      display: flex; gap: 6px; flex-shrink: 0;
+    }
+
+    /* ── Sub-events ───────────────────────────────────── */
+    .sub-toggle {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--border);
+      font-size: .8rem; font-weight: 600; color: var(--muted);
+      cursor: pointer; user-select: none;
+      transition: background .15s;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .sub-toggle:hover { background: #f8fafc; }
+    .sub-toggle .count-badge {
+      background: var(--accent); color: #fff;
+      font-size: .7rem; padding: 1px 7px; border-radius: 10px;
+    }
+    .sub-toggle .chevron { margin-left: auto; transition: transform .2s; }
+    .sub-toggle.open .chevron { transform: rotate(180deg); }
+
+    .sub-list {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height .35s cubic-bezier(0.4,0,0.2,1);
+      background: #f8fafc;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .sub-list.open { max-height: 2000px; }
+
+    .sub-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 18px;
+      border-top: 1px solid var(--border);
+      transition: background .15s;
+      animation: slideIn .2s ease;
+    }
+    .sub-item:hover { background: #f0f4f9; }
+
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .s1 { background: #94a3b8; }
+    .s2 { background: var(--warn); }
+    .s3 { background: var(--accent); }
+    .s4 { background: var(--success); }
+
+    .sub-info { flex: 1; min-width: 0; }
+    .sub-label { font-size: .85rem; font-weight: 600; word-break: break-word; }
+    .sub-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .sub-status-badge {
+      font-size: .7rem; font-weight: 600; padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .s1-bg { background: #f1f5f9; color: #475569; }
+    .s2-bg { background: #fef3c7; color: #92400e; }
+    .s3-bg { background: #e0f2fe; color: #075985; }
+    .s4-bg { background: #dcfce7; color: #166534; }
+
+    .sub-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+    .add-sub-row {
+      padding: 10px 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Empty state ──────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 80px 20px;
+      color: var(--muted);
+    }
+    .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: .4; }
+    .empty-state p { font-size: .95rem; margin-bottom: 20px; }
+
+    /* ── Modal ────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(15,23,42,.45);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      width: 100%; max-width: 520px;
+      max-height: 90vh; overflow-y: auto;
+      transform: scale(.95) translateY(12px);
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: none; background: #f1f5f9; color: var(--muted);
+      font-size: .9rem; display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .modal-close:hover { background: #fee2e2; color: var(--danger); }
+
+    .modal-body { padding: 20px 24px; }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 8px; justify-content: flex-end;
+    }
+
+    /* ── Form ─────────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block; font-size: .8rem; font-weight: 600;
+      color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .form-control {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: .88rem; background: var(--surface); color: var(--text);
+      outline: none; transition: border-color .18s, box-shadow .18s;
+    }
+    .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14,165,233,.12); }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Confirm dialog ───────────────────────────────── */
+    .confirm-modal { max-width: 380px; }
+    .confirm-modal .modal-body { text-align: center; padding: 28px 24px 20px; }
+    .confirm-modal .confirm-icon {
+      font-size: 2.2rem; color: var(--danger); margin-bottom: 14px;
+    }
+    .confirm-modal p { color: var(--muted); font-size: .88rem; }
+
+    /* ── Toast ────────────────────────────────────────── */
+    .toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      background: #1e293b; color: #fff;
+      padding: 12px 18px; border-radius: 10px;
+      font-size: .84rem; font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn .3s ease, toastOut .3s ease 2.5s forwards;
+      pointer-events: all;
+    }
+    .toast.success { background: #15803d; }
+    .toast.error   { background: #b91c1c; }
+    @keyframes toastIn  { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform: translateY(8px); } }
+
+    /* ── Animations ───────────────────────────────────── */
+    @keyframes slideIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+
+    /* ── Status legend ────────────────────────────────── */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+      padding: 12px 18px; background: var(--surface);
+      border-radius: var(--radius); border: 1.5px solid var(--border);
+      margin-bottom: 24px; font-size: .78rem; color: var(--muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-weight: 500; }
+
+    /* ── Filter chips ─────────────────────────────────── */
+    .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .chip {
+      padding: 5px 14px; border-radius: 20px;
+      font-size: .78rem; font-weight: 600; cursor: pointer;
+      border: 1.5px solid var(--border); background: var(--surface);
+      color: var(--muted); transition: all .15s;
+    }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Stats bar ────────────────────────────────────── */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1.5px solid var(--border); padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-card .val { font-size: 1.5rem; font-weight: 800; }
+    .stat-card .lbl { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .stat-accent  { color: var(--accent); }
+    .stat-danger  { color: var(--danger); }
+    .stat-success { color: var(--success); }
+    .stat-warn    { color: var(--warn); }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 600px) {
+      .timeline-wrapper::before { left: 16px; }
+      .event-card { margin-left: 40px; }
+      .event-card::before { left: calc(-40px + 16px - var(--dot)/2 + var(--line)/2); }
+      .form-row { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: repeat(2,1fr); }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left { flex-wrap: wrap; }
+      .search-box input { width: 100%; }
+      .search-box { flex: 1; }
+      .app-header { padding: 0 14px; }
+    }
+
+    /* ── Export btn ───────────────────────────────────── */
+    .export-menu {
+      position: relative;
+    }
+    .export-dropdown {
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; box-shadow: var(--shadow-lg);
+      padding: 6px; min-width: 160px; z-index: 200;
+      display: none;
+    }
+    .export-menu:hover .export-dropdown,
+    .export-menu.open .export-dropdown { display: block; }
+    .export-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 6px; font-size: .82rem; font-weight: 500;
+      color: var(--text); cursor: pointer; transition: background .15s;
+    }
+    .export-option:hover { background: #f0f4f9; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="app-header">
+  <h1><i class="fas fa-stream"></i> SPR Timeline</h1>
+  <div class="header-actions">
+    <div class="search-box">
+      <i class="fas fa-search"></i>
+      <input type="text" id="searchInput" placeholder="Rechercher…" oninput="renderTimeline()" />
+    </div>
+    <div class="export-menu" id="exportMenu">
+      <button class="btn btn-ghost btn-sm" onclick="toggleExport(event)">
+        <i class="fas fa-download"></i><span class="hide-xs">Export</span>
+      </button>
+      <div class="export-dropdown">
+        <div class="export-option" onclick="exportJSON()"><i class="fas fa-file-code"></i> JSON</div>
+        <div class="export-option" onclick="exportCSV()"><i class="fas fa-file-csv"></i> CSV</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="importJSON()" title="Importer JSON">
+      <i class="fas fa-upload"></i>
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="openEventModal()">
+      <i class="fas fa-plus"></i><span class="hide-xs">Événement</span>
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<main class="main-container">
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="filter-chips" id="filterChips">
+        <span class="chip active" data-filter="all" onclick="setFilter('all', this)">Tous</span>
+        <span class="chip" data-filter="overdue" onclick="setFilter('overdue', this)">En retard</span>
+        <span class="chip" data-filter="ontime" onclick="setFilter('ontime', this)">À temps</span>
+        <span class="chip" data-filter="no-real" onclick="setFilter('no-real', this)">Sans date réelle</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="expandAll(true)"><i class="fas fa-expand-alt"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="expandAll(false)"><i class="fas fa-compress-alt"></i></button>
+      <select class="form-control" style="width:auto;padding:7px 10px;font-size:.8rem" onchange="sortEvents(this.value)">
+        <option value="date_initiale">Trier: Date initiale</option>
+        <option value="date_reelle">Trier: Date réelle</option>
+        <option value="label">Trier: Nom</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <strong style="color:var(--text)">Statuts:</strong>
+    <span class="legend-item"><span class="status-dot s1"></span>Non démarré</span>
+    <span class="legend-item"><span class="status-dot s2"></span>En cours</span>
+    <span class="legend-item"><span class="status-dot s3"></span>En révision</span>
+    <span class="legend-item"><span class="status-dot s4"></span>Terminé</span>
+    <span style="margin-left:auto;display:flex;gap:12px">
+      <span class="legend-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block"></span>Normal</span>
+      <span class="legend-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--success);display:inline-block"></span>Avance</span>
+      <span class="legend-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--danger);display:inline-block"></span>Retard</span>
+    </span>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline-wrapper" id="timelineWrapper"></div>
+</main>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+
+<!-- Event Modal -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="eventModalTitle">Nouvel événement</h2>
+      <button class="modal-close" onclick="closeModal('eventModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Libellé *</label>
+        <input class="form-control" id="evLabel" placeholder="Nom de l'événement" required />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date initiale *</label>
+          <input class="form-control" id="evDateInit" type="date" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date réelle</label>
+          <input class="form-control" id="evDateReal" type="date" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <textarea class="form-control" id="evNote" placeholder="Informations complémentaires…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('eventModal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEvent()"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sub-event Modal -->
+<div class="modal-overlay" id="subModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="subModalTitle">Nouveau sous-événement</h2>
+      <button class="modal-close" onclick="closeModal('subModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Libellé *</label>
+        <input class="form-control" id="subLabel" placeholder="Nom du sous-événement" required />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date initiale *</label>
+          <input class="form-control" id="subDateInit" type="date" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date réelle</label>
+          <input class="form-control" id="subDateReal" type="date" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Statut</label>
+        <select class="form-control" id="subStatus">
+          <option value="statut1">Non démarré</option>
+          <option value="statut2">En cours</option>
+          <option value="statut3">En révision</option>
+          <option value="statut4">Terminé</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <textarea class="form-control" id="subNote" placeholder="Détails…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('subModal')">Annuler</button>
+      <button class="btn btn-secondary" onclick="saveSub()"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="modal-body">
+      <div class="confirm-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px">Supprimer ?</h3>
+      <p id="confirmMsg">Cette action est irréversible.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Annuler</button>
+      <button class="btn btn-danger" id="confirmOkBtn"><i class="fas fa-trash"></i> Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleImport(event)" />
+
+<!-- ═══════════════ SCRIPT ═══════════════ -->
+<script>
+'use strict';
+
+/* ─── IndexedDB ─────────────────────────────────────── */
+const DB_NAME    = 'spr_timeline';
+const DB_VERSION = 1;
+const STORE      = 'events';
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE))
+        d.createObjectStore(STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbAll() {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbPut(obj) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).put(obj);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbClear() {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).clear();
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+/* ─── Public API ────────────────────────────────────── */
+/**
+ * Returns the current array of events with sub-events from IndexedDB.
+ * Each date is returned as a Date object.
+ */
+async function getEvents() {
+  const rows = await dbAll();
+  return rows.map(row => ({
+    ...row,
+    date_initiale: row.date_initiale ? new Date(row.date_initiale) : null,
+    date_reelle:   row.date_reelle   ? new Date(row.date_reelle)   : null,
+    sub: (row.sub || []).map(s => ({
+      ...s,
+      date_initiale: s.date_initiale ? new Date(s.date_initiale) : null,
+      date_reelle:   s.date_reelle   ? new Date(s.date_reelle)   : null,
+    }))
+  }));
+}
+
+/* ─── In-memory state ───────────────────────────────── */
+let events  = [];          // flat array from DB (dates as ISO strings internally)
+let filter  = 'all';
+let sortKey = 'date_initiale';
+
+/* ─── Helpers ───────────────────────────────────────── */
+function uid()   { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function toISO(d){ return d || null; }
+
+function daysDiff(a, b) {
+  if (!a || !b) return null;
+  return Math.round((new Date(b) - new Date(a)) / 86400000);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function fmtDelta(days) {
+  if (days === null) return '';
+  if (days === 0)   return '<span class="delta-badge delta-exact"><i class="fas fa-equals"></i> À temps</span>';
+  if (days > 0)     return `<span class="delta-badge delta-late"><i class="fas fa-clock"></i> +${days}j</span>`;
+  return `<span class="delta-badge delta-early"><i class="fas fa-bolt"></i> ${days}j</span>`;
+}
+
+const STATUS_LABELS = {
+  statut1: 'Non démarré',
+  statut2: 'En cours',
+  statut3: 'En révision',
+  statut4: 'Terminé',
+};
+const STATUS_DOT = { statut1:'s1', statut2:'s2', statut3:'s3', statut4:'s4' };
+const STATUS_BG  = { statut1:'s1-bg', statut2:'s2-bg', statut3:'s3-bg', statut4:'s4-bg' };
+
+function getOverdueClass(ev) {
+  const d = daysDiff(ev.date_initiale, ev.date_reelle);
+  if (d === null) return '';
+  if (d > 0)  return 'overdue';
+  if (d <= 0) return 'on-time';
+  return '';
+}
+
+/* ─── Render ────────────────────────────────────────── */
+function renderTimeline() {
+  const q   = (document.getElementById('searchInput').value || '').toLowerCase();
+  const wrap = document.getElementById('timelineWrapper');
+
+  let list = [...events];
+
+  // filter
+  if (filter === 'overdue')  list = list.filter(e => daysDiff(e.date_initiale, e.date_reelle) > 0);
+  if (filter === 'ontime')   list = list.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0; });
+  if (filter === 'no-real')  list = list.filter(e => !e.date_reelle);
+
+  // search
+  if (q) list = list.filter(e =>
+    e.label.toLowerCase().includes(q) ||
+    (e.note || '').toLowerCase().includes(q) ||
+    (e.sub || []).some(s => s.label.toLowerCase().includes(q))
+  );
+
+  // sort
+  list.sort((a, b) => {
+    if (sortKey === 'label') return a.label.localeCompare(b.label);
+    const av = a[sortKey] || ''; const bv = b[sortKey] || '';
+    return av.localeCompare(bv);
+  });
+
+  if (list.length === 0) {
+    wrap.innerHTML = `<div class="empty-state">
+      <i class="fas fa-calendar-times"></i>
+      <p>Aucun événement trouvé.</p>
+      <button class="btn btn-primary" onclick="openEventModal()"><i class="fas fa-plus"></i> Ajouter un événement</button>
+    </div>`;
+    return;
+  }
+
+  wrap.innerHTML = list.map(ev => renderEvent(ev)).join('');
+  renderStats();
+}
+
+function renderEvent(ev) {
+  const delta = fmtDelta(daysDiff(ev.date_initiale, ev.date_reelle));
+  const odClass = getOverdueClass(ev);
+  const subs = ev.sub || [];
+
+  const noteHtml = ev.note
+    ? `<div class="event-note">${escHtml(ev.note)}</div>` : '';
+
+  const subItems = subs.map(s => renderSub(ev.id, s)).join('');
+
+  const subSection = subs.length > 0 ? `
+    <div class="sub-toggle" id="toggle-${ev.id}" onclick="toggleSub('${ev.id}')">
+      <i class="fas fa-sitemap" style="color:var(--accent2)"></i>
+      ${subs.length} sous-événement${subs.length > 1 ? 's' : ''}
+      <span class="count-badge">${subs.filter(s=>s.status==='statut4').length}/${subs.length}</span>
+      <i class="fas fa-chevron-down chevron"></i>
+    </div>
+    <div class="sub-list" id="sublist-${ev.id}">
+      ${subItems}
+      <div class="add-sub-row">
+        <button class="btn btn-ghost btn-sm" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i> Sous-événement</button>
+      </div>
+    </div>
+  ` : `
+    <div class="sub-toggle" style="cursor:default;border-top:1px solid var(--border)">
+      <i class="fas fa-sitemap" style="color:#e2e8f0"></i>
+      <span style="opacity:.5">Aucun sous-événement</span>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i></button>
+    </div>
+  `;
+
+  return `
+  <div class="event-card ${odClass}" id="event-${ev.id}" data-id="${ev.id}">
+    <div class="event-header">
+      <div class="event-header-left">
+        <div class="event-label">${escHtml(ev.label)}</div>
+        <div class="event-dates">
+          <span class="date-chip initial"><i class="fas fa-calendar"></i>${fmtDate(ev.date_initiale)}</span>
+          ${ev.date_reelle ? `<span class="date-chip ${daysDiff(ev.date_initiale, ev.date_reelle) > 0 ? 'late' : 'early'}"><i class="fas fa-calendar-check"></i>${fmtDate(ev.date_reelle)}</span>` : ''}
+          ${delta}
+        </div>
+      </div>
+      <div class="event-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" onclick="openEventModal('${ev.id}')">
+          <i class="fas fa-pen" style="color:var(--accent)"></i>
+        </button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Supprimer" onclick="confirmDeleteEvent('${ev.id}')">
+          <i class="fas fa-trash" style="color:var(--danger)"></i>
+        </button>
+      </div>
+    </div>
+    ${noteHtml}
+    ${subSection}
+  </div>`;
+}
+
+function renderSub(evId, s) {
+  const delta = fmtDelta(daysDiff(s.date_initiale, s.date_reelle));
+  return `
+  <div class="sub-item" id="sub-${evId}-${s.id}">
+    <span class="status-dot ${STATUS_DOT[s.status] || 's1'}"></span>
+    <div class="sub-info">
+      <div class="sub-label">${escHtml(s.label)}</div>
+      <div class="sub-meta">
+        <span class="date-chip initial" style="font-size:.7rem"><i class="fas fa-calendar"></i>${fmtDate(s.date_initiale)}</span>
+        ${s.date_reelle ? `<span class="date-chip ${daysDiff(s.date_initiale, s.date_reelle) > 0 ? 'late' : 'early'}" style="font-size:.7rem"><i class="fas fa-calendar-check"></i>${fmtDate(s.date_reelle)}</span>` : ''}
+        ${delta}
+        <span class="sub-status-badge ${STATUS_BG[s.status] || 's1-bg'}">${STATUS_LABELS[s.status] || s.status}</span>
+      </div>
+      ${s.note ? `<div style="font-size:.75rem;color:var(--muted);margin-top:4px">${escHtml(s.note)}</div>` : ''}
+    </div>
+    <div class="sub-actions">
+      <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" onclick="openSubModal('${evId}','${s.id}')">
+        <i class="fas fa-pen" style="color:var(--accent2)"></i>
+      </button>
+      <button class="btn btn-ghost btn-sm btn-icon" title="Supprimer" onclick="confirmDeleteSub('${evId}','${s.id}')">
+        <i class="fas fa-trash" style="color:var(--danger)"></i>
+      </button>
+    </div>
+  </div>`;
+}
+
+function renderStats() {
+  const total   = events.length;
+  const overdue = events.filter(e => daysDiff(e.date_initiale, e.date_reelle) > 0).length;
+  const ontime  = events.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0; }).length;
+  const subs    = events.reduce((a, e) => a + (e.sub || []).length, 0);
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-card"><div class="val stat-accent">${total}</div><div class="lbl">Événements</div></div>
+    <div class="stat-card"><div class="val stat-danger">${overdue}</div><div class="lbl">En retard</div></div>
+    <div class="stat-card"><div class="val stat-success">${ontime}</div><div class="lbl">À temps</div></div>
+    <div class="stat-card"><div class="val stat-warn">${subs}</div><div class="lbl">Sous-événements</div></div>
+  `;
+}
+
+/* ─── Sub toggle ────────────────────────────────────── */
+function toggleSub(evId) {
+  const list    = document.getElementById(`sublist-${evId}`);
+  const toggle  = document.getElementById(`toggle-${evId}`);
+  if (!list) return;
+  list.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+function expandAll(open) {
+  events.forEach(e => {
+    const list   = document.getElementById(`sublist-${e.id}`);
+    const toggle = document.getElementById(`toggle-${e.id}`);
+    if (!list) return;
+    if (open)  { list.classList.add('open'); toggle && toggle.classList.add('open'); }
+    else       { list.classList.remove('open'); toggle && toggle.classList.remove('open'); }
+  });
+}
+
+/* ─── Filter / sort ─────────────────────────────────── */
+function setFilter(f, el) {
+  filter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTimeline();
+}
+function sortEvents(key) {
+  sortKey = key;
+  renderTimeline();
+}
+
+/* ─── Modal helpers ─────────────────────────────────── */
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+document.querySelectorAll('.modal-overlay').forEach(o =>
+  o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
+);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.querySelectorAll('.modal-overlay.active').forEach(o => closeModal(o.id));
+});
+
+/* ─── Event CRUD ────────────────────────────────────── */
+let editingEventId = null;
+
+function openEventModal(id) {
+  editingEventId = id || null;
+  const ev = id ? events.find(e => e.id === id) : null;
+  document.getElementById('eventModalTitle').textContent = ev ? 'Modifier l\'événement' : 'Nouvel événement';
+  document.getElementById('evLabel').value    = ev ? ev.label         : '';
+  document.getElementById('evDateInit').value = ev ? (ev.date_initiale || '') : '';
+  document.getElementById('evDateReal').value = ev ? (ev.date_reelle   || '') : '';
+  document.getElementById('evNote').value     = ev ? (ev.note          || '') : '';
+  openModal('eventModal');
+  setTimeout(() => document.getElementById('evLabel').focus(), 50);
+}
+
+async function saveEvent() {
+  const label    = document.getElementById('evLabel').value.trim();
+  const dateInit = document.getElementById('evDateInit').value;
+  const dateReal = document.getElementById('evDateReal').value;
+  const note     = document.getElementById('evNote').value.trim();
+
+  if (!label)    { shake('evLabel'); return; }
+  if (!dateInit) { shake('evDateInit'); return; }
+
+  if (editingEventId) {
+    const ev = events.find(e => e.id === editingEventId);
+    Object.assign(ev, { label, date_initiale: dateInit, date_reelle: dateReal || null, note });
+    await dbPut(ev);
+    toast('Événement mis à jour', 'success');
+  } else {
+    const ev = { id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, note, sub: [] };
+    events.push(ev);
+    await dbPut(ev);
+    toast('Événement créé', 'success');
+  }
+  closeModal('eventModal');
+  renderTimeline();
+}
+
+function confirmDeleteEvent(id) {
+  const ev = events.find(e => e.id === id);
+  document.getElementById('confirmMsg').textContent = `Supprimer "${ev.label}" et tous ses sous-événements ?`;
+  document.getElementById('confirmOkBtn').onclick = () => deleteEvent(id);
+  openModal('confirmModal');
+}
+
+async function deleteEvent(id) {
+  events = events.filter(e => e.id !== id);
+  await dbDelete(id);
+  closeModal('confirmModal');
+  renderTimeline();
+  toast('Événement supprimé');
+}
+
+/* ─── Sub CRUD ──────────────────────────────────────── */
+let editingSubEventId = null;
+let editingSubId      = null;
+
+function openSubModal(evId, subId) {
+  editingSubEventId = evId;
+  editingSubId      = subId || null;
+  const ev  = events.find(e => e.id === evId);
+  const sub = subId ? (ev.sub || []).find(s => s.id === subId) : null;
+  document.getElementById('subModalTitle').textContent = sub ? 'Modifier le sous-événement' : 'Nouveau sous-événement';
+  document.getElementById('subLabel').value    = sub ? sub.label         : '';
+  document.getElementById('subDateInit').value = sub ? (sub.date_initiale || '') : '';
+  document.getElementById('subDateReal').value = sub ? (sub.date_reelle   || '') : '';
+  document.getElementById('subStatus').value   = sub ? (sub.status        || 'statut1') : 'statut1';
+  document.getElementById('subNote').value     = sub ? (sub.note          || '') : '';
+  openModal('subModal');
+  setTimeout(() => document.getElementById('subLabel').focus(), 50);
+}
+
+async function saveSub() {
+  const label    = document.getElementById('subLabel').value.trim();
+  const dateInit = document.getElementById('subDateInit').value;
+  const dateReal = document.getElementById('subDateReal').value;
+  const status   = document.getElementById('subStatus').value;
+  const note     = document.getElementById('subNote').value.trim();
+
+  if (!label)    { shake('subLabel'); return; }
+  if (!dateInit) { shake('subDateInit'); return; }
+
+  const ev = events.find(e => e.id === editingSubEventId);
+  if (!ev.sub) ev.sub = [];
+
+  if (editingSubId) {
+    const sub = ev.sub.find(s => s.id === editingSubId);
+    Object.assign(sub, { label, date_initiale: dateInit, date_reelle: dateReal || null, status, note });
+    toast('Sous-événement mis à jour', 'success');
+  } else {
+    ev.sub.push({ id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, status, note });
+    toast('Sous-événement créé', 'success');
+  }
+  await dbPut(ev);
+  closeModal('subModal');
+  const wasOpen = document.getElementById(`sublist-${ev.id}`)?.classList.contains('open');
+  renderTimeline();
+  if (wasOpen) toggleSub(ev.id);  // keep expanded
+}
+
+function confirmDeleteSub(evId, subId) {
+  const ev  = events.find(e => e.id === evId);
+  const sub = (ev.sub || []).find(s => s.id === subId);
+  document.getElementById('confirmMsg').textContent = `Supprimer "${sub.label}" ?`;
+  document.getElementById('confirmOkBtn').onclick = () => deleteSub(evId, subId);
+  openModal('confirmModal');
+}
+
+async function deleteSub(evId, subId) {
+  const ev = events.find(e => e.id === evId);
+  ev.sub   = (ev.sub || []).filter(s => s.id !== subId);
+  await dbPut(ev);
+  closeModal('confirmModal');
+  renderTimeline();
+  toast('Sous-événement supprimé');
+}
+
+/* ─── Toast ─────────────────────────────────────────── */
+function toast(msg, type = '') {
+  const el  = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+  el.innerHTML = `<i class="fas ${icon}"></i> ${escHtml(msg)}`;
+  const container = document.getElementById('toastContainer');
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+/* ─── Validation shake ──────────────────────────────── */
+function shake(id) {
+  const el = document.getElementById(id);
+  el.style.borderColor = 'var(--danger)';
+  el.style.animation = 'none';
+  requestAnimationFrame(() => {
+    el.style.animation = 'shake .4s ease';
+    setTimeout(() => { el.style.animation = ''; el.style.borderColor = ''; }, 500);
+  });
+}
+
+/* ─── Escape HTML ───────────────────────────────────── */
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─── Export ────────────────────────────────────────── */
+function toggleExport(e) {
+  e.stopPropagation();
+  document.getElementById('exportMenu').classList.toggle('open');
+}
+document.addEventListener('click', () => document.getElementById('exportMenu').classList.remove('open'));
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+  download(blob, 'timeline.json');
+}
+
+function exportCSV() {
+  const rows = [['id','label','date_initiale','date_reelle','note','sub_id','sub_label','sub_date_initiale','sub_date_reelle','sub_status','sub_note']];
+  events.forEach(ev => {
+    if (!ev.sub || ev.sub.length === 0) {
+      rows.push([ev.id, ev.label, ev.date_initiale||'', ev.date_reelle||'', ev.note||'', '', '', '', '', '', '']);
+    } else {
+      ev.sub.forEach(s => {
+        rows.push([ev.id, ev.label, ev.date_initiale||'', ev.date_reelle||'', ev.note||'', s.id, s.label, s.date_initiale||'', s.date_reelle||'', s.status||'', s.note||'']);
+      });
+    }
+  });
+  const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  download(blob, 'timeline.csv');
+}
+
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ─── Import ────────────────────────────────────────── */
+function importJSON() {
+  document.getElementById('fileInput').click();
+}
+
+async function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('Format invalide');
+    await dbClear();
+    events = [];
+    for (const ev of data) {
+      if (!ev.id) ev.id = uid();
+      if (!ev.sub) ev.sub = [];
+      events.push(ev);
+      await dbPut(ev);
+    }
+    renderTimeline();
+    toast(`${data.length} événement(s) importé(s)`, 'success');
+  } catch (err) {
+    toast('Erreur d\'importation: ' + err.message, 'error');
+  }
+  e.target.value = '';
+}
+
+/* ─── Shake animation CSS ───────────────────────────── */
+const style = document.createElement('style');
+style.textContent = `@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }`;
+document.head.appendChild(style);
+
+/* ─── Demo seed data ────────────────────────────────── */
+const DEMO = [
+  {
+    id: 'ev1',
+    label: 'Phase 1 — Analyse réglementaire',
+    date_initiale: '2026-01-15',
+    date_reelle:   '2026-01-20',
+    note: 'Collecte et analyse des textes réglementaires applicables au projet.',
+    sub: [
+      { id: 'sv1a', label: 'Inventaire des textes', date_initiale: '2026-01-15', date_reelle: '2026-01-16', status: 'statut4', note: 'Règlements EU + droit local' },
+      { id: 'sv1b', label: 'Analyse des écarts',    date_initiale: '2026-01-17', date_reelle: '2026-01-20', status: 'statut4', note: '' },
+      { id: 'sv1c', label: 'Rapport synthèse',       date_initiale: '2026-01-20', date_reelle: null,         status: 'statut2', note: 'En attente de validation direction' },
+    ]
+  },
+  {
+    id: 'ev2',
+    label: 'Phase 2 — Mise en conformité',
+    date_initiale: '2026-02-01',
+    date_reelle:   '2026-03-10',
+    note: 'Implémentation des actions correctives identifiées lors de la phase 1.',
+    sub: [
+      { id: 'sv2a', label: 'Plan d\'action détaillé', date_initiale: '2026-02-01', date_reelle: '2026-02-05', status: 'statut4', note: '' },
+      { id: 'sv2b', label: 'Formation équipes',       date_initiale: '2026-02-15', date_reelle: '2026-02-20', status: 'statut3', note: 'Session e-learning + présentiel' },
+      { id: 'sv2c', label: 'Mise à jour procédures',  date_initiale: '2026-03-01', date_reelle: null,         status: 'statut2', note: '' },
+    ]
+  },
+  {
+    id: 'ev3',
+    label: 'Phase 3 — Audit interne',
+    date_initiale: '2026-04-01',
+    date_reelle:   null,
+    note: '',
+    sub: [
+      { id: 'sv3a', label: 'Audit documentaire', date_initiale: '2026-04-01', date_reelle: null, status: 'statut1', note: '' },
+      { id: 'sv3b', label: 'Audit terrain',       date_initiale: '2026-04-15', date_reelle: null, status: 'statut1', note: '' },
+    ]
+  },
+  {
+    id: 'ev4',
+    label: 'Certification finale',
+    date_initiale: '2026-06-01',
+    date_reelle:   null,
+    note: 'Soumission du dossier de certification auprès de l\'organisme compétent.',
+    sub: []
+  }
+];
+
+/* ─── Init ──────────────────────────────────────────── */
+async function init() {
+  await openDB();
+  const stored = await dbAll();
+  if (stored.length === 0) {
+    // Seed demo data on first run
+    for (const ev of DEMO) await dbPut(ev);
+    events = DEMO;
+  } else {
+    events = stored;
+  }
+  renderTimeline();
+}
+
+init().catch(err => {
+  console.error(err);
+  toast('Erreur d\'initialisation de la base de données.', 'error');
+});
+
+/* ─── Expose public API ─────────────────────────────── */
+window.TimelineAPI = { getEvents };
+</script>
+</body>
+</html>
