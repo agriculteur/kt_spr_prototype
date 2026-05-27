@@ -950,79 +950,51 @@ document.addEventListener('click', () =>
 );
 
 /* ════════════════════════════════════════════════════════
-   IndexedDB — one store per timeline (keyed by dbStore name)
+   IndexedDB — single store 'timelines'; one record per
+   timeline keyed by dbStore name: { id, events: [...] }
 ════════════════════════════════════════════════════════ */
-const DB_NAME = 'spr_timeline';
+const DB_NAME    = 'spr_timeline';
+const TL_STORE   = 'timelines';
+const DB_VERSION = 1;
 
-let _db      = null;
 let _dbReady = null;
 
-/* Open at the browser's current version (no version arg = current version).
-   Never request a lower version — that causes VersionError. */
 function getDB() {
   if (_dbReady) return _dbReady;
   _dbReady = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME); /* no version = open at existing version */
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = e => {
-      /* Runs only on very first ever open (version 0→1). */
-      if (!e.target.result.objectStoreNames.contains('events'))
-        e.target.result.createObjectStore('events', { keyPath: 'id' });
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(TL_STORE))
+        db.createObjectStore(TL_STORE, { keyPath: 'id' });
     };
-    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onsuccess = e => resolve(e.target.result);
     req.onerror   = () => reject(req.error);
   });
   return _dbReady;
 }
 
-/* Ensure a named store exists, bumping the version only when necessary. */
-function ensureStore(db, store) {
-  if (db.objectStoreNames.contains(store)) return Promise.resolve(db);
-  return new Promise((resolve, reject) => {
-    const newVer = db.version + 1;
-    db.close();
-    _db = null; _dbReady = null;
-    const req = indexedDB.open(DB_NAME, newVer);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains(store))
-        d.createObjectStore(store, { keyPath: 'id' });
-    };
-    req.onsuccess = e => { _db = e.target.result; _dbReady = Promise.resolve(_db); resolve(_db); };
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-function dbAll(store) {
+/* Load the events array for a timeline key. Returns [] if not found. */
+function tlLoad(key) {
   return getDB().then(db => new Promise((res, rej) => {
-    if (!db.objectStoreNames.contains(store)) { res([]); return; }
-    const req = db.transaction(store, 'readonly').objectStore(store).getAll();
-    req.onsuccess = () => res(req.result);
+    const req = db.transaction(TL_STORE, 'readonly').objectStore(TL_STORE).get(key);
+    req.onsuccess = () => res(req.result ? req.result.events : []);
     req.onerror   = () => rej(req.error);
   }));
 }
 
-function dbPut(store, obj) {
-  return getDB().then(db => ensureStore(db, store)).then(db => new Promise((res, rej) => {
-    const req = db.transaction(store, 'readwrite').objectStore(store).put(obj);
+/* Persist the full events array for a timeline key. */
+function tlSave(key, events) {
+  return getDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction(TL_STORE, 'readwrite').objectStore(TL_STORE).put({ id: key, events });
     req.onsuccess = () => res();
     req.onerror   = () => rej(req.error);
   }));
 }
 
-function dbDelete(store, id) {
-  return getDB().then(db => new Promise((res, rej) => {
-    const req = db.transaction(store, 'readwrite').objectStore(store).delete(id);
-    req.onsuccess = () => res();
-    req.onerror   = () => rej(req.error);
-  }));
-}
-
-function dbClear(store) {
-  return getDB().then(db => new Promise((res, rej) => {
-    const req = db.transaction(store, 'readwrite').objectStore(store).clear();
-    req.onsuccess = () => res();
-    req.onerror   = () => rej(req.error);
-  }));
+/* Wipe all events for a timeline key. */
+function tlClear(key) {
+  return tlSave(key, []);
 }
 
 /* ════════════════════════════════════════════════════════
@@ -1580,12 +1552,12 @@ class Timeline {
         if (ev.date_reelle) ev.date_reelle_history.push({ date: ev.date_reelle, changed_at: new Date().toISOString() });
       }
       Object.assign(ev, { label, date_initiale: dateInit, date_reelle: dateReal, status, note });
-      await dbPut(this.store, ev);
+      await tlSave(this.store, this.events);
       toast('Événement mis à jour', 'success');
     } else {
       const ev = { id: uid(), label, date_initiale: dateInit, date_reelle: dateReal, status, note, date_reelle_history: [], sub: [] };
       this.events.push(ev);
-      await dbPut(this.store, ev);
+      await tlSave(this.store, this.events);
       toast('Événement créé', 'success');
     }
     closeModal('eventModal');
@@ -1601,7 +1573,7 @@ class Timeline {
 
   async _deleteEvent(id) {
     this.events = this.events.filter(e => e.id !== id);
-    await dbDelete(this.store, id);
+    await tlSave(this.store, this.events);
     closeModal('confirmModal');
     this._render();
     toast('Événement supprimé');
@@ -1652,7 +1624,7 @@ class Timeline {
       ev.sub.push({ id: uid(), label, date_initiale: dateInit, date_reelle: dateReal, status, note, attachments, date_reelle_history: [] });
       toast('Sous-événement créé', 'success');
     }
-    await dbPut(this.store, ev);
+    await tlSave(this.store, this.events);
     closeModal('subModal');
     const wasOpen = this.host.querySelector(`#${this.store}-sublist-${ev.id}`)?.classList.contains('open');
     this._render();
@@ -1670,7 +1642,7 @@ class Timeline {
   async _deleteSub(evId, subId) {
     const ev = this.events.find(e => e.id === evId);
     ev.sub   = (ev.sub || []).filter(s => s.id !== subId);
-    await dbPut(this.store, ev);
+    await tlSave(this.store, this.events);
     closeModal('confirmModal');
     this._render();
     toast('Sous-événement supprimé');
@@ -1720,14 +1692,8 @@ class Timeline {
     try {
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data)) throw new Error('Format invalide');
-      await dbClear(this.store);
-      this.events = [];
-      for (const ev of data) {
-        if (!ev.id) ev.id = uid();
-        if (!ev.sub) ev.sub = [];
-        this.events.push(ev);
-        await dbPut(this.store, ev);
-      }
+      this.events = data.map(ev => ({ ...ev, id: ev.id || uid(), sub: ev.sub || [] }));
+      await tlSave(this.store, this.events);
       this._render();
       toast(`${data.length} événement(s) importé(s)`, 'success');
     } catch (err) {
@@ -1737,11 +1703,10 @@ class Timeline {
 
   /* ── Public: init from DB ─────────────────────────── */
   async init() {
-    await ensureStore(await getDB(), this.store);
-    let stored = await dbAll(this.store);
+    let stored = await tlLoad(this.store);
     if (stored.length === 0 && this.seed.length > 0) {
-      for (const ev of this.seed) await dbPut(this.store, ev);
       stored = this.seed;
+      await tlSave(this.store, stored);
     }
     this.events = stored;
     this._applyMode(this.mode);
