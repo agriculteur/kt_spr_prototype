@@ -6,6 +6,19 @@
   <title>SPR Pro | Timeline</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      corePlugins: { preflight: false }, /* don't let Tailwind reset override existing styles */
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
     /* ── Variables ────────────────────────────────────── */
     :root {
@@ -23,17 +36,19 @@
       --radius:    12px;
       --shadow:    0 4px 24px rgba(0,0,0,.07);
       --shadow-lg: 0 8px 40px rgba(0,0,0,.12);
-      --line:      3px;
-      --dot:       18px;
-
-      /* Typography scale */
+      /* geometry — shrink on narrow viewports */
+      --line:      clamp(2px,  .4vw, 3px);
+      --dot:       clamp(14px, 2vw,  20px);
+      --tl-indent: clamp(36px, 6vw,  60px); /* margin-left of cards & caps */
+      --tl-axis:   clamp(18px, 3vw,  28px); /* left of the axis line inside wrapper */
       --font-body: 'Inter', system-ui, -apple-system, sans-serif;
       --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-      --text-xs:   .72rem;   /* 11.5px */
-      --text-sm:   .8125rem; /* 13px  */
-      --text-base: .9375rem; /* 15px  */
-      --text-lg:   1.0625rem;/* 17px  */
-      --text-xl:   1.25rem;  /* 20px  */
+      /* fluid type scale: min @ ~320px → max @ ~1280px */
+      --text-xs:   clamp(.6rem,   .5rem + .5vw,  .75rem);
+      --text-sm:   clamp(.7rem,   .55rem + .6vw, .875rem);
+      --text-base: clamp(.8rem,   .6rem  + .75vw, 1rem);
+      --text-lg:   clamp(.9rem,   .65rem + .9vw,  1.125rem);
+      --text-xl:   clamp(1rem,    .7rem  + 1.1vw, 1.35rem);
       --lh-tight:  1.3;
       --lh-snug:   1.45;
       --lh-normal: 1.6;
@@ -61,7 +76,7 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-    /* ── Layout ───────────────────────────────────────── */
+    /* ── App header ───────────────────────────────────── */
     .app-header {
       position: sticky; top: 0; z-index: 100;
       background: rgba(255,255,255,.85);
@@ -79,17 +94,24 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       display: flex; align-items: center; gap: 10px;
     }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
 
-    .main-container { max-width: 1100px; margin: 0 auto; padding: 36px 20px 80px; }
+    /* ── Timeline host (the element you pass as container) */
+    .tl-host { margin-bottom: 60px; }
 
-    /* ── Toolbar ──────────────────────────────────────── */
-    .toolbar {
+    /* ── Timeline panel header ────────────────────────── */
+    .tl-panel-header {
       display: flex; flex-wrap: wrap; gap: 10px;
       align-items: center; justify-content: space-between;
-      margin-bottom: 28px;
+      padding: 18px 0 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
     }
-    .toolbar-left { display: flex; gap: 10px; flex-wrap: wrap; }
+    .tl-panel-title {
+      font-size: var(--text-lg); font-weight: 800;
+      letter-spacing: -.02em;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .tl-panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
     /* ── Buttons ──────────────────────────────────────── */
     .btn {
@@ -110,9 +132,7 @@
     .btn-icon { padding: 7px; border-radius: 8px; }
 
     /* ── Search ───────────────────────────────────────── */
-    .search-box {
-      position: relative; display: flex; align-items: center;
-    }
+    .search-box { position: relative; display: flex; align-items: center; }
     .search-box i { position: absolute; left: 10px; color: var(--muted); font-size: .8rem; }
     .search-box input {
       padding: 8px 12px 8px 30px; border: 1.5px solid var(--border); border-radius: 8px;
@@ -121,258 +141,283 @@
     }
     .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14,165,233,.12); width: 250px; }
 
+    /* ── Toolbar (embedded in cap-start, right edge) ─── */
+    .cap-toolbar {
+      position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+      display: flex; align-items: center; gap: 4px; z-index: 10;
+    }
+    .toolbar-toggle {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--muted); cursor: pointer;
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; transition: all .15s; user-select: none;
+    }
+    .toolbar-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .toolbar-toggle .t-chevron { transition: transform .2s; }
+    .toolbar-toggle.open .t-chevron { transform: rotate(180deg); }
+    .toolbar-controls {
+      display: none; align-items: center; gap: 4px;
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 6px 8px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+      white-space: nowrap; z-index: 20;
+    }
+    .toolbar-controls.open { display: flex; }
+
     /* ── Timeline wrapper ─────────────────────────────── */
     .timeline-wrapper { position: relative; }
-
-    /* central vertical line */
     .timeline-wrapper::before {
       content: '';
-      position: absolute; left: 28px; top: 0; bottom: 0;
+      position: absolute; left: var(--tl-axis); top: 0; bottom: 0;
       width: var(--line);
       background: linear-gradient(to bottom, var(--accent), var(--accent2));
       border-radius: 10px;
     }
 
-    /* ── Timeline cap nodes (Début / Fin) ─────────────── */
+    /* ── Timeline cap nodes ───────────────────────────── */
     .timeline-cap {
-      position: relative;
-      margin-left: 60px;
-      display: flex; align-items: center;
-      gap: 12px;
-      height: 36px;
+      position: relative; margin-left: var(--tl-indent);
+      display: flex; align-items: center; gap: 12px; height: 36px;
     }
     .timeline-cap::before {
       content: '';
       position: absolute;
-      left: calc(-60px + 28px - 11px + var(--line)/2);
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      border: 3px solid var(--surface);
-      z-index: 1;
+      left: calc(-1 * var(--tl-indent) + var(--tl-axis) - 11px + var(--line) / 2);
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 3px solid var(--surface); z-index: 1;
     }
     .timeline-cap.cap-start { margin-bottom: 8px; }
     .timeline-cap.cap-end   { margin-top: 8px; }
-
-    .timeline-cap.cap-start::before {
-      background: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent), 0 0 12px rgba(14,165,233,.4);
-    }
-    .timeline-cap.cap-end::before {
-      background: var(--accent2);
-      box-shadow: 0 0 0 3px var(--accent2), 0 0 12px rgba(99,102,241,.4);
-    }
-    .cap-label {
-      font-size: var(--text-xs); font-weight: 800;
-      letter-spacing: var(--ls-wider); text-transform: uppercase; opacity: .5;
-    }
+    .timeline-cap.cap-start::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent), 0 0 12px rgba(14,165,233,.4); }
+    .timeline-cap.cap-end::before   { background: var(--accent2); box-shadow: 0 0 0 3px var(--accent2), 0 0 12px rgba(99,102,241,.4); }
+    .cap-label { font-size: var(--text-xs); font-weight: 800; letter-spacing: var(--ls-wider); text-transform: uppercase; opacity: .5; }
     .cap-start .cap-label { color: var(--accent); }
     .cap-end   .cap-label { color: var(--accent2); }
 
-    @media (max-width: 600px) {
-      .timeline-cap { margin-left: 40px; }
-      .timeline-cap::before { left: calc(-40px + 16px - 11px + var(--line)/2); }
-    }
-
     /* ── Event card ───────────────────────────────────── */
     .event-card {
-      position: relative;
-      margin-left: 60px;
-      margin-bottom: 20px;
-      background: var(--surface);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      border: 1.5px solid var(--border);
+      position: relative; margin-left: var(--tl-indent); margin-bottom: clamp(12px, 2vw, 20px);
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow); border: 1.5px solid var(--border);
       transition: box-shadow .2s, transform .2s;
       animation: slideIn .3s ease;
     }
     .event-card:hover { box-shadow: var(--shadow-lg); transform: translateX(2px); }
-
-    /* dot on the line */
     .event-card::before {
       content: '';
       position: absolute;
-      left: calc(-60px + 28px - var(--dot)/2 + var(--line)/2);
-      top: 22px;
-      width: var(--dot); height: var(--dot);
-      border-radius: 50%;
-      border: 3px solid var(--surface);
+      left: calc(-1 * var(--tl-indent) + var(--tl-axis) - var(--dot) / 2 + var(--line) / 2);
+      top: 22px; width: var(--dot); height: var(--dot);
+      border-radius: 50%; border: 3px solid var(--surface);
       box-shadow: 0 0 0 2px var(--accent);
-      background: var(--accent);
-      z-index: 1;
-      transition: background .2s;
+      background: var(--accent); z-index: 1; transition: background .2s;
     }
-    .event-card.overdue::before { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
-    .event-card.on-time::before { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+    .event-card.overdue::before  { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+    .event-card.on-time::before  { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+
+    /* clickable overlay on the timeline dot */
+    .event-dot {
+      position: absolute;
+      left: calc(-1 * var(--tl-indent) + var(--tl-axis) - var(--dot) / 2 + var(--line) / 2);
+      top: 22px; width: var(--dot); height: var(--dot);
+      border-radius: 50%; z-index: 2;
+      cursor: pointer;
+      transition: transform .18s;
+    }
+    .event-dot:hover { transform: scale(1.35); }
+    .event-dot.has-subs { cursor: pointer; }
 
     .event-header {
       display: flex; align-items: flex-start; justify-content: space-between;
-      padding: 16px 18px 12px;
-      gap: 12px;
+      padding: clamp(10px, 1.5vw, 16px) clamp(12px, 2vw, 18px) clamp(8px, 1.2vw, 12px); gap: 12px;
     }
     .event-header-left { flex: 1; min-width: 0; }
-    .event-label {
-      font-size: var(--text-base); font-weight: 700;
-      letter-spacing: -.015em; line-height: var(--lh-tight);
-      color: var(--text); margin-bottom: 8px; word-break: break-word;
-    }
-    .event-dates {
-      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-    }
-    .date-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: var(--text-xs); font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      padding: 3px 9px; border-radius: 20px;
-      font-family: var(--font-mono); letter-spacing: .01em;
-    }
-    .date-chip.initial { background: #e0f2fe; color: #0369a1; }
-    .date-chip.real    { background: #fef9c3; color: #854d0e; }
-    .date-chip.late    { background: #fee2e2; color: #991b1b; }
-    .date-chip.early   { background: #dcfce7; color: #166534; }
-    .delta-badge {
-      font-size: var(--text-xs); font-weight: 700;
-      font-variant-numeric: tabular-nums; letter-spacing: .01em;
-      padding: 2px 8px; border-radius: 20px;
-      display: inline-flex; align-items: center; gap: 4px;
-    }
-    .delta-late  { background: #fee2e2; color: #b91c1c; }
-    .delta-early { background: #dcfce7; color: #15803d; }
-    .delta-exact { background: #f1f5f9; color: #475569; }
-
-    .event-note {
-      padding: 10px 20px 14px;
-      font-size: var(--text-sm); color: var(--muted);
-      line-height: var(--lh-normal);
-      border-top: 1px solid #f1f5f9;
-    }
-
-    .event-actions {
-      display: flex; gap: 6px; flex-shrink: 0;
-    }
+    .event-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
     /* ── Sub-events ───────────────────────────────────── */
     .sub-toggle {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 20px;
+      display: flex; align-items: center; gap: 8px; padding: 10px 20px;
       border-top: 1px solid var(--border);
       font-size: var(--text-xs); font-weight: 700;
-      letter-spacing: var(--ls-wide); text-transform: uppercase;
-      color: var(--muted);
-      cursor: pointer; user-select: none;
-      transition: background .15s;
+      letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--muted);
+      cursor: pointer; user-select: none; transition: background .15s;
       border-radius: 0 0 var(--radius) var(--radius);
     }
     .sub-toggle:hover { background: #f8fafc; }
     .sub-toggle .count-badge {
       background: var(--accent); color: #fff;
       font-size: var(--text-xs); font-weight: 700;
-      padding: 1px 8px; border-radius: 10px;
-      letter-spacing: 0; text-transform: none;
+      padding: 1px 8px; border-radius: 10px; letter-spacing: 0; text-transform: none;
     }
     .sub-toggle .chevron { margin-left: auto; transition: transform .2s; }
     .sub-toggle.open .chevron { transform: rotate(180deg); }
 
     .sub-list {
-      overflow: hidden;
-      max-height: 0;
+      overflow: hidden; max-height: 0;
       transition: max-height .35s cubic-bezier(0.4,0,0.2,1);
       background: #f8fafc;
       border-radius: 0 0 var(--radius) var(--radius);
+      position: relative;
     }
     .sub-list.open { max-height: 2000px; }
 
+    /* vertical connector line inside the sub-list */
+    .sub-list::before {
+      content: '';
+      position: absolute;
+      left: var(--tl-axis); top: 0; bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent2), rgba(99,102,241,.15));
+      border-radius: 10px;
+      pointer-events: none;
+    }
+
     .sub-item {
       display: flex; align-items: center; gap: 12px;
-      padding: 11px 18px;
+      padding: clamp(8px, 1.2vw, 11px) clamp(14px, 2vw, 18px) clamp(8px, 1.2vw, 11px) calc(var(--tl-axis) + 24px);
       border-top: 1px solid var(--border);
-      transition: background .15s;
-      animation: slideIn .2s ease;
+      transition: background .15s; animation: slideIn .2s ease;
+      position: relative;
     }
     .sub-item:hover { background: #f0f4f9; }
 
-    .status-dot {
-      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    /* dot on the sub connector line */
+    .sub-item::before {
+      content: '';
+      position: absolute;
+      left: calc(var(--tl-axis) - 4px); /* centre on the 2px line */
+      top: 50%; transform: translateY(-50%);
+      width: clamp(7px, 1.2vw, 10px); height: clamp(7px, 1.2vw, 10px);
+      border-radius: 50%;
+      border: 2px solid #f8fafc;
+      background: #94a3b8; /* default s1 */
+      z-index: 1;
     }
-    .s1 { background: #94a3b8; }
-    .s2 { background: var(--warn); }
-    .s3 { background: var(--accent); }
-    .s4 { background: var(--success); }
+    .sub-item.s2::before { background: var(--warn); }
+    .sub-item.s3::before { background: var(--accent); }
+    .sub-item.s4::before { background: var(--success); }
+    .sub-item.sr::before { background: var(--danger); }
+
+    /* right-edge status band */
+    .sub-item::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: clamp(5px, 1vw, 12px);
+      background: #94a3b8; /* default s1 */
+    }
+    .sub-item:last-child::after { border-radius: 0 0 var(--radius) 0; }
+    .sub-item.s2::after { background: var(--warn); }
+    .sub-item.s3::after { background: var(--accent); }
+    .sub-item.s4::after { background: var(--success); }
+    .sub-item.sr::after { background: var(--danger); }
+
+    .add-sub-row {
+      position: relative;
+      padding: 10px 10px 10px calc(var(--tl-axis) + 24px);
+      border-top: 1px solid var(--border);
+    }
+    .add-sub-row::before {
+      content: '';
+      position: absolute;
+      left: calc(var(--tl-axis) - 3px);
+      top: 50%; transform: translateY(-50%);
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 2px solid #f8fafc;
+      background: rgba(99,102,241,.3);
+      z-index: 1;
+    }
+
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.s1 { background: #94a3b8; }
+    .status-dot.s2 { background: var(--warn); }
+    .status-dot.s3 { background: var(--accent); }
+    .status-dot.s4 { background: var(--success); }
 
     .sub-info { flex: 1; min-width: 0; }
-    .sub-label {
-      font-size: var(--text-sm); font-weight: 600;
-      letter-spacing: -.01em; line-height: var(--lh-snug);
-      color: var(--text-2); word-break: break-word;
-    }
-    .sub-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
-    .sub-status-badge {
-      font-size: var(--text-xs); font-weight: 700;
-      letter-spacing: .02em; padding: 2px 8px;
-      border-radius: 10px;
-    }
-    .s1-bg { background: #f1f5f9; color: #475569; }
-    .s2-bg { background: #fef3c7; color: #92400e; }
-    .s3-bg { background: #e0f2fe; color: #075985; }
-    .s4-bg { background: #dcfce7; color: #166534; }
-    .sr    { background: var(--danger); }
-    .sr-bg { background: #fee2e2; color: #991b1b; }
+    .status-dot.sr { background: var(--danger); }
 
     .sub-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
-    .add-sub-row {
-      padding: 10px 18px;
-      border-top: 1px solid var(--border);
+    /* ── Attachment chips ─────────────────────────────── */
+    .attach-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .attach-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px 3px 7px; border-radius: 20px;
+      font-size: var(--text-xs); font-weight: 600;
+      border: 1.5px solid var(--border); background: var(--surface);
+      color: var(--text-2); text-decoration: none;
+      transition: background .15s, border-color .15s;
+      cursor: pointer; max-width: 220px;
+    }
+    .attach-chip:hover { background: #f0f4f9; border-color: var(--accent); color: var(--accent); }
+    .attach-chip i { font-size: .72rem; flex-shrink: 0; }
+    .attach-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Attachment modal section ─────────────────────── */
+    .attach-tab-bar {
+      display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: 8px;
+      overflow: hidden; margin-bottom: 14px;
+    }
+    .attach-tab {
+      flex: 1; padding: 7px; font-size: var(--text-xs); font-weight: 700;
+      text-align: center; cursor: pointer; background: var(--surface);
+      color: var(--muted); border: none; transition: background .15s, color .15s;
+      letter-spacing: .03em; text-transform: uppercase;
+    }
+    .attach-tab.active { background: var(--accent); color: #fff; }
+    .attach-tab-panel { display: none; }
+    .attach-tab-panel.active { display: block; }
+
+    .attach-pending-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    .attach-pending-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 8px;
+      background: #f8fafc; border: 1.5px solid var(--border);
+      font-size: var(--text-xs);
+    }
+    .attach-pending-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attach-pending-item button {
+      background: none; border: none; color: var(--danger);
+      cursor: pointer; font-size: .8rem; padding: 0 2px; flex-shrink: 0;
     }
 
     /* ── Empty state ──────────────────────────────────── */
-    .empty-state {
-      text-align: center; padding: 80px 20px;
-      color: var(--muted);
-    }
+    .empty-state { text-align: center; padding: 80px 20px; color: var(--muted); }
     .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: .4; }
     .empty-state p { font-size: .95rem; margin-bottom: 20px; }
 
     /* ── Modal ────────────────────────────────────────── */
     .modal-overlay {
       position: fixed; inset: 0; z-index: 1000;
-      background: rgba(15,23,42,.45);
-      backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
-      opacity: 0; pointer-events: none;
-      transition: opacity .22s;
+      background: rgba(15,23,42,.45); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity .22s;
     }
     .modal-overlay.active { opacity: 1; pointer-events: all; }
-
     .modal {
-      background: var(--surface);
-      border-radius: 16px;
-      box-shadow: var(--shadow-lg);
-      width: 100%; max-width: 520px;
-      max-height: 90vh; overflow-y: auto;
+      background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-lg);
+      width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
       transform: scale(.95) translateY(12px);
       transition: transform .25s cubic-bezier(.34,1.56,.64,1);
     }
     .modal-overlay.active .modal { transform: scale(1) translateY(0); }
-
     .modal-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 24px 16px;
-      border-bottom: 1px solid var(--border);
+      padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
     }
     .modal-header h2 { font-size: var(--text-base); font-weight: 700; letter-spacing: -.02em; }
     .modal-close {
-      width: 32px; height: 32px; border-radius: 8px;
-      border: none; background: #f1f5f9; color: var(--muted);
-      font-size: .9rem; display: flex; align-items: center; justify-content: center;
-      transition: all .15s;
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: #f1f5f9; color: var(--muted); font-size: .9rem;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
     }
     .modal-close:hover { background: #fee2e2; color: var(--danger); }
-
     .modal-body { padding: 20px 24px; }
     .modal-footer {
-      padding: 16px 24px;
-      border-top: 1px solid var(--border);
+      padding: 16px 24px; border-top: 1px solid var(--border);
       display: flex; gap: 8px; justify-content: flex-end;
     }
 
@@ -384,11 +429,10 @@
       text-transform: uppercase; letter-spacing: var(--ls-wider);
     }
     .form-control {
-      width: 100%; padding: 9px 13px;
-      border: 1.5px solid var(--border); border-radius: 8px;
+      width: 100%; padding: 9px 13px; border: 1.5px solid var(--border); border-radius: 8px;
       font-size: var(--text-sm); line-height: var(--lh-snug);
-      background: var(--surface); color: var(--text);
-      outline: none; transition: border-color .18s, box-shadow .18s;
+      background: var(--surface); color: var(--text); outline: none;
+      transition: border-color .18s, box-shadow .18s;
     }
     .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14,165,233,.12); }
     textarea.form-control { resize: vertical; min-height: 80px; line-height: var(--lh-normal); }
@@ -397,9 +441,7 @@
     /* ── Confirm dialog ───────────────────────────────── */
     .confirm-modal { max-width: 380px; }
     .confirm-modal .modal-body { text-align: center; padding: 28px 24px 20px; }
-    .confirm-modal .confirm-icon {
-      font-size: 2.2rem; color: var(--danger); margin-bottom: 14px;
-    }
+    .confirm-modal .confirm-icon { font-size: 2.2rem; color: var(--danger); margin-bottom: 14px; }
     .confirm-modal p { color: var(--muted); font-size: var(--text-sm); line-height: var(--lh-normal); }
 
     /* ── Toast ────────────────────────────────────────── */
@@ -411,119 +453,76 @@
       background: #1e293b; color: #fff;
       padding: 11px 18px; border-radius: 10px;
       font-size: var(--text-sm); font-weight: 500; letter-spacing: .01em;
-      box-shadow: var(--shadow-lg);
-      display: flex; align-items: center; gap: 10px;
+      box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px;
       animation: toastIn .3s ease, toastOut .3s ease 2.5s forwards;
       pointer-events: all;
     }
     .toast.success { background: #15803d; }
     .toast.error   { background: #b91c1c; }
-    @keyframes toastIn  { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
-    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform: translateY(8px); } }
 
     /* ── Animations ───────────────────────────────────── */
-    @keyframes slideIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes slideIn  { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes toastIn  { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform: translateY(8px); } }
+    @keyframes shake    { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 
-    /* ── Status legend ────────────────────────────────── */
-    .legend {
-      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-      padding: 11px 18px; background: var(--surface);
-      border-radius: var(--radius); border: 1.5px solid var(--border);
-      margin-bottom: 24px;
-      font-size: var(--text-xs); color: var(--muted);
-      letter-spacing: .01em;
-    }
-    .legend-item { display: flex; align-items: center; gap: 5px; font-weight: 600; }
-
-    /* ── Filter chips ─────────────────────────────────── */
-    .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-    .chip {
-      padding: 5px 14px; border-radius: 20px;
-      font-size: var(--text-xs); font-weight: 700;
-      letter-spacing: .02em; cursor: pointer;
-      border: 1.5px solid var(--border); background: var(--surface);
-      color: var(--muted); transition: all .15s;
-    }
-    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-    /* ── Stats bar ────────────────────────────────────── */
+    /* ── Stats / KPI filter bar ──────────────────────── */
     .stats-bar {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 12px; margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(clamp(90px, 18vw, 160px), 1fr));
+      gap: clamp(6px, 1.2vw, 12px); margin-bottom: clamp(16px, 3vw, 28px);
     }
     .stat-card {
       background: var(--surface); border-radius: var(--radius);
-      border: 1.5px solid var(--border); padding: 14px 16px;
+      border: 1.5px solid var(--border);
+      padding: clamp(8px, 1.5vw, 14px) clamp(10px, 1.8vw, 16px);
       text-align: center;
+      cursor: pointer; transition: box-shadow .18s, transform .18s, border-color .18s;
+      user-select: none;
     }
-    .stat-card .val { font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
-    .stat-card .lbl { font-size: var(--text-xs); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: var(--ls-wider); margin-top: 4px; }
-    .stat-accent  { color: var(--accent); }
-    .stat-danger  { color: var(--danger); }
-    .stat-success { color: var(--success); }
-    .stat-warn    { color: var(--warn); }
+    .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .stat-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(14,165,233,.18), var(--shadow);
+      transform: translateY(-1px);
+    }
+    .stat-card.active-danger  { border-color: var(--danger);  box-shadow: 0 0 0 3px rgba(239,68,68,.18), var(--shadow);  transform: translateY(-1px); }
+    .stat-card.active-success { border-color: var(--success); box-shadow: 0 0 0 3px rgba(34,197,94,.18), var(--shadow);  transform: translateY(-1px); }
+    .stat-card.active-warn    { border-color: var(--warn);    box-shadow: 0 0 0 3px rgba(245,158,11,.18), var(--shadow);  transform: translateY(-1px); }
 
-    /* ── Responsive ───────────────────────────────────── */
-    @media (max-width: 600px) {
-      .timeline-wrapper::before { left: 16px; }
-      .event-card { margin-left: 40px; }
-      .event-card::before { left: calc(-40px + 16px - var(--dot)/2 + var(--line)/2); }
-      .form-row { grid-template-columns: 1fr; }
-      .stats-bar { grid-template-columns: repeat(2,1fr); }
-      .toolbar { flex-direction: column; align-items: stretch; }
-      .toolbar-left { flex-wrap: wrap; }
-      .search-box input { width: 100%; }
-      .search-box { flex: 1; }
-      .app-header { padding: 0 14px; }
-    }
-
-    /* ── Date history badge & popover ────────────────── */
-    .history-wrap {
-      position: relative; display: inline-flex; align-items: center;
-    }
+    /* ── History badge & popover ──────────────────────── */
+    .history-wrap { position: relative; display: inline-flex; align-items: center; }
     .history-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 17px; height: 17px; border-radius: 50%;
       background: var(--warn); color: #fff;
-      font-size: .62rem; font-weight: 800;
-      margin-left: 4px; cursor: pointer;
-      vertical-align: middle;
-      transition: transform .15s;
-      flex-shrink: 0;
+      font-size: .62rem; font-weight: 800; margin-left: 4px; cursor: pointer;
+      vertical-align: middle; transition: transform .15s; flex-shrink: 0;
     }
     .history-badge:hover { transform: scale(1.2); }
-
     .history-popover {
-      position: absolute; z-index: 300;
-      top: calc(100% + 8px); left: 0;
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      box-shadow: var(--shadow-lg);
-      min-width: 240px; max-width: 320px;
-      padding: 12px 14px;
-      display: none;
-      animation: slideIn .18s ease;
+      position: absolute; z-index: 300; top: calc(100% + 8px); left: 0;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; box-shadow: var(--shadow-lg);
+      min-width: 240px; max-width: 320px; padding: 12px 14px;
+      display: none; animation: slideIn .18s ease;
     }
     .history-popover.open { display: block; }
     .history-popover h4 {
       font-size: var(--text-xs); font-weight: 700; color: var(--muted);
       text-transform: uppercase; letter-spacing: var(--ls-wider);
-      margin-bottom: 10px;
-      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
     }
     .history-entry {
       display: flex; align-items: center; gap: 8px;
-      padding: 5px 0; border-top: 1px solid #f1f5f9;
-      font-size: var(--text-xs);
+      padding: 5px 0; border-top: 1px solid #f1f5f9; font-size: var(--text-xs);
     }
     .history-entry:first-of-type { border-top: none; }
     .history-entry .h-idx {
       width: 18px; height: 18px; border-radius: 50%;
       background: #f1f5f9; color: var(--muted);
       font-size: var(--text-xs); font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .history-entry .h-date { font-weight: 700; color: var(--text); font-family: var(--font-mono); letter-spacing: .01em; }
     .history-entry .h-when { color: var(--muted); font-size: var(--text-xs); margin-left: auto; }
@@ -531,8 +530,8 @@
     /* ── Mode toggle ──────────────────────────────────── */
     .mode-toggle {
       display: inline-flex; align-items: center;
-      background: #f1f5f9; border-radius: 10px; padding: 3px;
-      gap: 2px; border: 1.5px solid var(--border);
+      background: #f1f5f9; border-radius: 10px; padding: 3px; gap: 2px;
+      border: 1.5px solid var(--border);
     }
     .mode-btn {
       display: inline-flex; align-items: center; gap: 6px;
@@ -541,32 +540,24 @@
       border: none; background: transparent; color: var(--muted);
       transition: all .18s; cursor: pointer; white-space: nowrap;
     }
-    .mode-btn.active {
-      background: var(--surface); color: var(--text);
-      box-shadow: 0 1px 6px rgba(0,0,0,.10);
-    }
-    .mode-btn.active.edit-mode-btn  { color: var(--accent2); }
-    .mode-btn.active.read-mode-btn  { color: var(--success); }
+    .mode-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 6px rgba(0,0,0,.10); }
+    .mode-btn.active.edit-mode-btn { color: var(--accent2); }
+    .mode-btn.active.read-mode-btn { color: var(--success); }
 
-    /* read-only: hide every edit control */
-    body.read-only .edit-only { display: none !important; }
-    body.read-only .event-card { cursor: default; }
-    body.read-only .event-card:hover { transform: none; }
-    body.read-only .sub-item:hover { background: transparent; }
+    /* read-only: hide edit controls scoped to a host */
+    .tl-host.read-only .edit-only { display: none !important; }
+    .tl-host.read-only .event-card { cursor: default; }
+    .tl-host.read-only .event-card:hover { transform: none; }
+    .tl-host.read-only .sub-item:hover { background: transparent; }
 
-
-    /* ── Export btn ───────────────────────────────────── */
-    .export-menu {
-      position: relative;
-    }
+    /* ── Export menu ──────────────────────────────────── */
+    .export-menu { position: relative; }
     .export-dropdown {
       position: absolute; right: 0; top: calc(100% + 6px);
       background: var(--surface); border: 1.5px solid var(--border);
       border-radius: 10px; box-shadow: var(--shadow-lg);
-      padding: 6px; min-width: 160px; z-index: 200;
-      display: none;
+      padding: 6px; min-width: 160px; z-index: 200; display: none;
     }
-    .export-menu:hover .export-dropdown,
     .export-menu.open .export-dropdown { display: block; }
     .export-option {
       display: flex; align-items: center; gap: 10px;
@@ -574,6 +565,52 @@
       color: var(--text); cursor: pointer; transition: background .15s;
     }
     .export-option:hover { background: #f0f4f9; }
+
+    /* ── Page layout ──────────────────────────────────── */
+    .main-container { max-width: 1100px; margin: 0 auto; padding: clamp(16px, 4vw, 36px) clamp(12px, 3vw, 20px) 80px; }
+
+    /* ── Responsive ───────────────────────────────────── */
+
+    /* md: tablet landscape / small desktop */
+    @media (max-width: 900px) {
+      :root {
+        --tl-indent: clamp(36px, 5vw, 50px);
+        --tl-axis:   clamp(16px, 2.5vw, 22px);
+      }
+      .app-header { height: 54px; }
+      .tl-panel-header { padding: 14px 0 10px; margin-bottom: 14px; }
+    }
+
+    /* sm: mobile landscape / wide phone */
+    @media (max-width: 600px) {
+      :root {
+        --tl-indent: 36px;
+        --tl-axis:   16px;
+        --dot:       clamp(12px, 3.5vw, 16px);
+        --radius:    8px;
+      }
+      .form-row { grid-template-columns: 1fr; }
+      .search-box input { width: 100%; }
+      .search-box { flex: 1; }
+      .app-header { padding: 0 12px; height: 50px; }
+      .event-header { padding: 10px 12px 8px; }
+      .modal { max-width: 100%; border-radius: 12px 12px 0 0; }
+      .modal-overlay { align-items: flex-end; padding: 0; }
+      .tl-panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .tl-panel-actions { width: 100%; justify-content: flex-end; }
+    }
+
+    /* xs: narrow phone portrait */
+    @media (max-width: 400px) {
+      :root {
+        --tl-indent: 28px;
+        --tl-axis:   12px;
+        --dot:       12px;
+      }
+      .app-header h1 span { display: none; } /* hide subtitle text if any */
+      .btn span { display: none; }           /* icon-only buttons */
+      .btn-sm { padding: 5px 7px; }
+    }
   </style>
 </head>
 <body>
@@ -581,106 +618,29 @@
 <!-- ═══════════════ HEADER ═══════════════ -->
 <header class="app-header">
   <h1><i class="fas fa-stream"></i> SPR Timeline</h1>
-  <div class="header-actions">
-    <div class="search-box">
-      <i class="fas fa-search"></i>
-      <input type="text" id="searchInput" placeholder="Rechercher…" oninput="renderTimeline()" />
-    </div>
-
-    <!-- Mode toggle -->
-    <div class="mode-toggle" id="modeToggle">
-      <button class="mode-btn read-mode-btn active" id="btnRead" onclick="setMode('read')">
-        <i class="fas fa-eye"></i><span class="hide-xs">Lecture</span>
-      </button>
-      <button class="mode-btn edit-mode-btn" id="btnEdit" onclick="setMode('edit')">
-        <i class="fas fa-pen-to-square"></i><span class="hide-xs">Édition</span>
-      </button>
-    </div>
-
-    <div class="export-menu edit-only" id="exportMenu">
-      <button class="btn btn-ghost btn-sm" onclick="toggleExport(event)">
-        <i class="fas fa-download"></i><span class="hide-xs">Export</span>
-      </button>
-      <div class="export-dropdown">
-        <div class="export-option" onclick="exportJSON()"><i class="fas fa-file-code"></i> JSON</div>
-        <div class="export-option" onclick="exportCSV()"><i class="fas fa-file-csv"></i> CSV</div>
-      </div>
-    </div>
-    <button class="btn btn-ghost btn-sm edit-only" onclick="importJSON()" title="Importer JSON">
-      <i class="fas fa-upload"></i>
-    </button>
-    <button class="btn btn-primary btn-sm edit-only" onclick="openEventModal()">
-      <i class="fas fa-plus"></i><span class="hide-xs">Événement</span>
-    </button>
-  </div>
 </header>
 
 <!-- ═══════════════ MAIN ═══════════════ -->
-<main class="main-container">
+<main class="main-container" id="app"></main>
 
-  <!-- Stats -->
-  <div class="stats-bar" id="statsBar"></div>
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <div class="filter-chips" id="filterChips">
-        <span class="chip active" data-filter="all" onclick="setFilter('all', this)">Tous</span>
-        <span class="chip" data-filter="overdue" onclick="setFilter('overdue', this)">En retard</span>
-        <span class="chip" data-filter="ontime" onclick="setFilter('ontime', this)">À temps</span>
-        <span class="chip" data-filter="no-real" onclick="setFilter('no-real', this)">Sans date réelle</span>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-sm" id="dirBtn" onclick="toggleDir()" title="Inverser l'ordre">
-        <i class="fas fa-arrow-down-1-9"></i>
-      </button>
-      <button class="btn btn-ghost btn-sm" onclick="expandAll(true)"><i class="fas fa-expand-alt"></i></button>
-      <button class="btn btn-ghost btn-sm" onclick="expandAll(false)"><i class="fas fa-compress-alt"></i></button>
-      <select class="form-control" style="width:auto;padding:7px 10px;font-size:.8rem" onchange="sortEvents(this.value)">
-        <option value="date_initiale">Trier: Date initiale</option>
-        <option value="date_reelle">Trier: Date réelle</option>
-        <option value="label">Trier: Nom</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- Legend -->
-  <div class="legend">
-    <strong style="color:var(--text)">Statuts:</strong>
-    <span class="legend-item"><span class="status-dot s1"></span>Non démarré</span>
-    <span class="legend-item"><span class="status-dot s2"></span>En cours</span>
-    <span class="legend-item"><span class="status-dot s3"></span>En révision</span>
-    <span class="legend-item"><span class="status-dot s4"></span>Terminé</span>
-    <span style="margin-left:auto;display:flex;gap:12px">
-      <span class="legend-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block"></span>Normal</span>
-      <span class="legend-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--success);display:inline-block"></span>Avance</span>
-      <span class="legend-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--danger);display:inline-block"></span>Retard</span>
-    </span>
-  </div>
-
-  <!-- Timeline -->
-  <div class="timeline-wrapper" id="timelineWrapper"></div>
-</main>
-
-<!-- ═══════════════ MODALS ═══════════════ -->
+<!-- ═══════════════ SHARED MODALS ═══════════════ -->
 
 <!-- Event Modal -->
 <div class="modal-overlay" id="eventModal">
   <div class="modal">
     <div class="modal-header">
       <h2 id="eventModalTitle">Nouvel événement</h2>
-      <button class="modal-close" onclick="closeModal('eventModal')"><i class="fas fa-times"></i></button>
+      <button class="modal-close" id="eventModalClose"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">Libellé *</label>
-        <input class="form-control" id="evLabel" placeholder="Nom de l'événement" required />
+        <input class="form-control" id="evLabel" placeholder="Nom de l'événement" />
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Date initiale *</label>
-          <input class="form-control" id="evDateInit" type="date" required />
+          <input class="form-control" id="evDateInit" type="date" />
         </div>
         <div class="form-group">
           <label class="form-label">Date réelle</label>
@@ -702,8 +662,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('eventModal')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveEvent()"><i class="fas fa-save"></i> Enregistrer</button>
+      <button class="btn btn-ghost" id="eventModalCancel">Annuler</button>
+      <button class="btn btn-primary" id="eventModalSave"><i class="fas fa-save"></i> Enregistrer</button>
     </div>
   </div>
 </div>
@@ -713,17 +673,17 @@
   <div class="modal">
     <div class="modal-header">
       <h2 id="subModalTitle">Nouveau sous-événement</h2>
-      <button class="modal-close" onclick="closeModal('subModal')"><i class="fas fa-times"></i></button>
+      <button class="modal-close" id="subModalClose"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">Libellé *</label>
-        <input class="form-control" id="subLabel" placeholder="Nom du sous-événement" required />
+        <input class="form-control" id="subLabel" placeholder="Nom du sous-événement" />
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Date initiale *</label>
-          <input class="form-control" id="subDateInit" type="date" required />
+          <input class="form-control" id="subDateInit" type="date" />
         </div>
         <div class="form-group">
           <label class="form-label">Date réelle</label>
@@ -743,10 +703,49 @@
         <label class="form-label">Note</label>
         <textarea class="form-control" id="subNote" placeholder="Détails…"></textarea>
       </div>
+
+      <!-- Attachments -->
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Pièces jointes</label>
+        <div class="attach-tab-bar">
+          <button class="attach-tab active" data-atab="link" onclick="switchAttachTab('link')">
+            <i class="fas fa-link"></i> Hyperlien
+          </button>
+          <button class="attach-tab" data-atab="file" onclick="switchAttachTab('file')">
+            <i class="fas fa-paperclip"></i> Fichier
+          </button>
+        </div>
+
+        <!-- Link panel -->
+        <div class="attach-tab-panel active" id="attachPanelLink">
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:8px">
+              <input class="form-control" id="attachUrl" placeholder="https://…" />
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+              <input class="form-control" id="attachUrlLabel" placeholder="Libellé (optionnel)" />
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addAttachLink()">
+            <i class="fas fa-plus"></i> Ajouter le lien
+          </button>
+        </div>
+
+        <!-- File panel -->
+        <div class="attach-tab-panel" id="attachPanelFile">
+          <input type="file" id="attachFileInput" multiple style="display:none" onchange="addAttachFiles(event)" />
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('attachFileInput').click()">
+            <i class="fas fa-upload"></i> Choisir un fichier…
+          </button>
+        </div>
+
+        <!-- Pending list (shared) -->
+        <div class="attach-pending-list" id="attachPendingList"></div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('subModal')">Annuler</button>
-      <button class="btn btn-secondary" onclick="saveSub()"><i class="fas fa-save"></i> Enregistrer</button>
+      <button class="btn btn-ghost" id="subModalCancel">Annuler</button>
+      <button class="btn btn-secondary" id="subModalSave"><i class="fas fa-save"></i> Enregistrer</button>
     </div>
   </div>
 </div>
@@ -760,7 +759,7 @@
       <p id="confirmMsg">Cette action est irréversible.</p>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Annuler</button>
+      <button class="btn btn-ghost" id="confirmCancel">Annuler</button>
       <button class="btn btn-danger" id="confirmOkBtn"><i class="fas fa-trash"></i> Supprimer</button>
     </div>
   </div>
@@ -770,103 +769,22 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Hidden file input for import -->
-<input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleImport(event)" />
+<input type="file" id="fileInput" accept=".json" style="display:none" />
 
 <!-- ═══════════════ SCRIPT ═══════════════ -->
 <script>
 'use strict';
 
-/* ─── IndexedDB ─────────────────────────────────────── */
-const DB_NAME    = 'spr_timeline';
-const DB_VERSION = 1;
-const STORE      = 'events';
-let db = null;
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE))
-        d.createObjectStore(STORE, { keyPath: 'id' });
-    };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-function dbAll() {
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-function dbPut(obj) {
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite');
-    const req = tx.objectStore(STORE).put(obj);
-    req.onsuccess = () => resolve();
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-function dbDelete(id) {
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite');
-    const req = tx.objectStore(STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-function dbClear() {
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite');
-    const req = tx.objectStore(STORE).clear();
-    req.onsuccess = () => resolve();
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-/* ─── Public API ────────────────────────────────────── */
-/**
- * Returns the current array of events with sub-events from IndexedDB.
- * Each date is returned as a Date object.
- */
-async function getEvents() {
-  const rows = await dbAll();
-  return rows.map(row => ({
-    ...row,
-    date_initiale: row.date_initiale ? new Date(row.date_initiale) : null,
-    date_reelle:   row.date_reelle   ? new Date(row.date_reelle)   : null,
-    sub: (row.sub || []).map(s => ({
-      ...s,
-      date_initiale: s.date_initiale ? new Date(s.date_initiale) : null,
-      date_reelle:   s.date_reelle   ? new Date(s.date_reelle)   : null,
-    }))
-  }));
-}
-
-/* ─── In-memory state ───────────────────────────────── */
-let events  = [];          // flat array from DB (dates as ISO strings internally)
-let filter  = 'all';
-let sortKey = 'date_initiale';
-let sortDir = 'asc';       // 'asc' = Début→Fin, 'desc' = Fin→Début
-
-/* ─── Helpers ───────────────────────────────────────── */
-function uid()   { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function toISO(d){ return d || null; }
-
+/* ════════════════════════════════════════════════════════
+   Shared helpers
+════════════════════════════════════════════════════════ */
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
-function daysDiff(a, b) {
-  if (!a) return null;
-  // if b (date_reelle) is missing, compare against today
-  const ref = b || TODAY_ISO;
-  return Math.round((new Date(ref) - new Date(a)) / 86400000);
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function fmtDate(iso) {
@@ -875,310 +793,130 @@ function fmtDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
+function daysDiff(a, b) {
+  if (!a) return null;
+  return Math.round((new Date(b || TODAY_ISO) - new Date(a)) / 86400000);
+}
+
 function fmtDelta(days) {
+  const base = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold tabular-nums';
+  const sz   = 'style="font-size:var(--text-xs)"';
   if (days === null) return '';
-  if (days === 0)   return '<span class="delta-badge delta-exact"><i class="fas fa-equals"></i> À temps</span>';
-  if (days > 0)     return `<span class="delta-badge delta-late"><i class="fas fa-clock"></i> +${days}j</span>`;
-  return `<span class="delta-badge delta-early"><i class="fas fa-bolt"></i> ${days}j</span>`;
+  if (days === 0) return `<span class="${base} bg-slate-100 text-slate-500" ${sz}><i class="fas fa-equals"></i> À temps</span>`;
+  if (days > 0)   return `<span class="${base} bg-red-100 text-red-700" ${sz}><i class="fas fa-clock"></i> +${days}j</span>`;
+  return `<span class="${base} bg-green-100 text-green-700" ${sz}><i class="fas fa-bolt"></i> ${days}j</span>`;
 }
 
-const STATUS_LABELS = {
-  statut1: 'Non démarré',
-  statut2: 'En cours',
-  statut3: 'En révision',
-  statut4: 'Terminé',
-};
-const STATUS_DOT = { statut1:'s1', statut2:'s2', statut3:'s3', statut4:'s4' };
-const STATUS_BG  = { statut1:'s1-bg', statut2:'s2-bg', statut3:'s3-bg', statut4:'s4-bg' };
-
-const DONE_STATUSES = new Set(['statut4']);
-
-function isEffectivelyLate(obj) {
-  if (DONE_STATUSES.has(obj.status)) return false;
-  return daysDiff(obj.date_initiale, obj.date_reelle) > 0;
-}
-
-function effectiveStatus(obj) {
-  if (!DONE_STATUSES.has(obj.status) && isEffectivelyLate(obj))
-    return 'retard';
-  return obj.status || 'statut1';
-}
-
-function getOverdueClass(ev) {
-  const d = daysDiff(ev.date_initiale, ev.date_reelle);
-  if (d === null) return '';
-  if (isEffectivelyLate(ev)) return 'overdue';
-  if (d <= 0)                return 'on-time';
-  return '';
-}
-
-/* ─── History badge helper ──────────────────────────── */
 function fmtRelative(isoStr) {
   const diff = Math.round((Date.now() - new Date(isoStr)) / 60000);
-  if (diff < 1)    return 'à l\'instant';
-  if (diff < 60)   return `il y a ${diff} min`;
+  if (diff < 1)  return 'à l\'instant';
+  if (diff < 60) return `il y a ${diff} min`;
   const h = Math.round(diff / 60);
-  if (h < 24)      return `il y a ${h}h`;
+  if (h < 24)    return `il y a ${h}h`;
   const d = Math.round(h / 24);
-  if (d < 30)      return `il y a ${d}j`;
-  const m = Math.round(d / 30);
-  return `il y a ${m} mois`;
+  if (d < 30)    return `il y a ${d}j`;
+  return `il y a ${Math.round(d / 30)} mois`;
 }
 
-function historyBadgeHtml(obj, uid) {
-  const hist = obj.date_reelle_history;
-  if (!hist || hist.length === 0) return '';
-  const popId = `hist-${uid}`;
-  const entries = hist.map((h, i) => `
-    <div class="history-entry">
-      <span class="h-idx">${i + 1}</span>
-      <span class="h-date">${fmtDate(h.date)}</span>
-      <span class="h-when">${fmtRelative(h.changed_at)}</span>
-    </div>`).join('');
-  return `
-    <span class="history-wrap">
-      <span class="history-badge" onclick="toggleHistoryPop('${popId}',event)" title="${hist.length} modification(s) de la date réelle">${hist.length}</span>
-      <div class="history-popover" id="${popId}">
-        <h4><i class="fas fa-history"></i> Historique date réelle</h4>
-        ${entries}
-        <div class="history-entry" style="border-top:1px solid #f1f5f9;margin-top:4px;padding-top:6px">
-          <span class="h-idx" style="background:var(--accent);color:#fff">${hist.length + 1}</span>
-          <span class="h-date" style="color:var(--accent)">${fmtDate(obj.date_reelle)} <em style="font-weight:400;font-size:.7rem">(actuelle)</em></span>
-        </div>
-      </div>
-    </span>`;
+const STATUS_LABELS = { statut1:'Non démarré', statut2:'En cours', statut3:'En révision', statut4:'Terminé' };
+const STATUS_DOT    = { statut1:'s1', statut2:'s2', statut3:'s3', statut4:'s4' };
+const STATUS_BG     = { statut1:'s1-bg', statut2:'s2-bg', statut3:'s3-bg', statut4:'s4-bg' };
+const STATUS_LABELS_EXT = { ...STATUS_LABELS, retard:'En retard' };
+const STATUS_DOT_EXT    = { ...STATUS_DOT, retard:'sr' };
+const STATUS_BG_EXT     = { ...STATUS_BG, retard:'sr-bg' };
+const DONE_STATUSES = new Set(['statut4']);
+
+/* ════════════════════════════════════════════════════════
+   Attachment helpers (shared, modal-scoped)
+════════════════════════════════════════════════════════ */
+
+/* In-progress list while the modal is open */
+let _pendingAttachments = [];
+
+function switchAttachTab(tab) {
+  document.querySelectorAll('.attach-tab').forEach(t => t.classList.toggle('active', t.dataset.atab === tab));
+  document.getElementById('attachPanelLink').classList.toggle('active', tab === 'link');
+  document.getElementById('attachPanelFile').classList.toggle('active', tab === 'file');
 }
 
-function toggleHistoryPop(id, e) {
-  e.stopPropagation();
-  const el = document.getElementById(id);
-  const isOpen = el.classList.contains('open');
-  document.querySelectorAll('.history-popover.open').forEach(p => p.classList.remove('open'));
-  if (!isOpen) el.classList.add('open');
-}
-document.addEventListener('click', () =>
-  document.querySelectorAll('.history-popover.open').forEach(p => p.classList.remove('open'))
-);
-
-/* ─── Sort ──────────────────────────────────────────── */
-function sortList(list, key) {
-  if (key === 'label') {
-    const sorted = [...list].sort((a, b) => a.label.localeCompare(b.label));
-    return sortDir === 'desc' ? sorted.reverse() : sorted;
-  }
-  // Date sort: dated items sorted chronologically, undated keep insertion order at the end.
-  const dated   = list.filter(e => e[key]);
-  const undated = list.filter(e => !e[key]);
-  dated.sort((a, b) => a[key].localeCompare(b[key]));
-  if (sortDir === 'desc') {
-    dated.reverse();
-    undated.reverse();
-    return [...undated, ...dated];   // undated at top when reversed, dated below
-  }
-  return [...dated, ...undated];
+function addAttachLink() {
+  const raw   = document.getElementById('attachUrl').value.trim();
+  const label = document.getElementById('attachUrlLabel').value.trim();
+  if (!raw) { shake('attachUrl'); return; }
+  let url = raw;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  _pendingAttachments.push({ type: 'link', url, label: label || url });
+  document.getElementById('attachUrl').value = '';
+  document.getElementById('attachUrlLabel').value = '';
+  _renderPending();
 }
 
-/* ─── Render ────────────────────────────────────────── */
-function renderTimeline() {
-  const q   = (document.getElementById('searchInput').value || '').toLowerCase();
-  const wrap = document.getElementById('timelineWrapper');
-
-  let list = [...events];
-
-  // filter
-  if (filter === 'overdue')  list = list.filter(e => daysDiff(e.date_initiale, e.date_reelle) > 0);
-  if (filter === 'ontime')   list = list.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0; });
-  if (filter === 'no-real')  list = list.filter(e => !e.date_reelle);
-
-  // search
-  if (q) list = list.filter(e =>
-    e.label.toLowerCase().includes(q) ||
-    (e.note || '').toLowerCase().includes(q) ||
-    (e.sub || []).some(s => s.label.toLowerCase().includes(q))
-  );
-
-  // sort — items without a date value keep their original insertion order,
-  // placed after all dated items (stable: preserve relative index among nulls)
-  list = sortList(list, sortKey);
-
-  if (list.length === 0) {
-    wrap.innerHTML = `<div class="empty-state">
-      <i class="fas fa-calendar-times"></i>
-      <p>Aucun événement trouvé.</p>
-      <button class="btn btn-primary" onclick="openEventModal()"><i class="fas fa-plus"></i> Ajouter un événement</button>
-    </div>`;
-    return;
-  }
-
-  const capDebut = `<div class="timeline-cap cap-start"><span class="cap-label">Début</span></div>`;
-  const capFin   = `<div class="timeline-cap cap-end"><span class="cap-label">Fin</span></div>`;
-  const [capTop, capBot] = sortDir === 'asc' ? [capDebut, capFin] : [capFin, capDebut];
-  wrap.innerHTML = capTop + list.map(ev => renderEvent(ev)).join('') + capBot;
-  renderStats();
-}
-
-const STATUS_LABELS_EXT = { ...STATUS_LABELS, retard: 'En retard' };
-const STATUS_DOT_EXT    = { ...STATUS_DOT,    retard: 'sr' };
-const STATUS_BG_EXT     = { ...STATUS_BG,     retard: 'sr-bg' };
-
-function renderEvent(ev) {
-  const delta = fmtDelta(daysDiff(ev.date_initiale, ev.date_reelle));
-  const odClass = getOverdueClass(ev);
-  const effStatus = effectiveStatus(ev);
-  const subs = ev.sub || [];
-
-  const noteHtml = ev.note
-    ? `<div class="event-note">${escHtml(ev.note)}</div>` : '';
-
-  const subItems = subs.map(s => renderSub(ev.id, s)).join('');
-
-  const subSection = subs.length > 0 ? `
-    <div class="sub-toggle" id="toggle-${ev.id}" onclick="toggleSub('${ev.id}')">
-      <i class="fas fa-sitemap" style="color:var(--accent2)"></i>
-      ${subs.length} sous-événement${subs.length > 1 ? 's' : ''}
-      <span class="count-badge">${subs.filter(s=>s.status==='statut4').length}/${subs.length}</span>
-      <i class="fas fa-chevron-down chevron"></i>
-    </div>
-    <div class="sub-list" id="sublist-${ev.id}">
-      ${subItems}
-      <div class="add-sub-row edit-only">
-        <button class="btn btn-ghost btn-sm" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i> Sous-événement</button>
-      </div>
-    </div>
-  ` : `
-    <div class="sub-toggle" style="cursor:default;border-top:1px solid var(--border)">
-      <i class="fas fa-sitemap" style="color:#e2e8f0"></i>
-      <span style="opacity:.5">Aucun sous-événement</span>
-      <button class="btn btn-ghost btn-sm edit-only" style="margin-left:auto" onclick="openSubModal('${ev.id}')"><i class="fas fa-plus"></i></button>
-    </div>
-  `;
-
-  return `
-  <div class="event-card ${odClass}" id="event-${ev.id}" data-id="${ev.id}">
-    <div class="event-header">
-      <div class="event-header-left">
-        <div class="event-label">${escHtml(ev.label)}</div>
-        <div class="event-dates">
-          <span class="date-chip initial"><i class="fas fa-calendar"></i>${fmtDate(ev.date_initiale)}</span>
-          ${ev.date_reelle
-            ? `<span class="date-chip ${daysDiff(ev.date_initiale, ev.date_reelle) > 0 ? 'late' : 'early'}"><i class="fas fa-calendar-check"></i>${fmtDate(ev.date_reelle)}${historyBadgeHtml(ev, ev.id)}</span>`
-            : isEffectivelyLate(ev) ? `<span class="date-chip late" title="Basé sur la date du jour"><i class="fas fa-calendar-day"></i>Aujourd'hui</span>` : ''}
-          ${delta}
-          ${effStatus === 'retard' ? `<span class="sub-status-badge sr-bg"><i class="fas fa-triangle-exclamation"></i> En retard</span>` : ''}
-        </div>
-      </div>
-      <div class="event-actions edit-only">
-        <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" onclick="openEventModal('${ev.id}')">
-          <i class="fas fa-pen" style="color:var(--accent)"></i>
-        </button>
-        <button class="btn btn-ghost btn-sm btn-icon" title="Supprimer" onclick="confirmDeleteEvent('${ev.id}')">
-          <i class="fas fa-trash" style="color:var(--danger)"></i>
-        </button>
-      </div>
-    </div>
-    ${noteHtml}
-    ${subSection}
-  </div>`;
-}
-
-function renderSub(evId, s) {
-  const delta = fmtDelta(daysDiff(s.date_initiale, s.date_reelle));
-  const effS  = effectiveStatus(s);
-  return `
-  <div class="sub-item" id="sub-${evId}-${s.id}">
-    <span class="status-dot ${STATUS_DOT_EXT[effS] || 's1'}"></span>
-    <div class="sub-info">
-      <div class="sub-label">${escHtml(s.label)}</div>
-      <div class="sub-meta">
-        <span class="date-chip initial" style="font-size:.7rem"><i class="fas fa-calendar"></i>${fmtDate(s.date_initiale)}</span>
-        ${s.date_reelle
-          ? `<span class="date-chip ${daysDiff(s.date_initiale, s.date_reelle) > 0 ? 'late' : 'early'}" style="font-size:.7rem"><i class="fas fa-calendar-check"></i>${fmtDate(s.date_reelle)}${historyBadgeHtml(s, evId + '-' + s.id)}</span>`
-          : isEffectivelyLate(s) ? `<span class="date-chip late" style="font-size:.7rem" title="Basé sur la date du jour"><i class="fas fa-calendar-day"></i>Aujourd'hui</span>` : ''}
-        ${delta}
-        <span class="sub-status-badge ${STATUS_BG_EXT[effS] || 's1-bg'}">${STATUS_LABELS_EXT[effS] || s.status}</span>
-      </div>
-      ${s.note ? `<div style="font-size:.75rem;color:var(--muted);margin-top:4px">${escHtml(s.note)}</div>` : ''}
-    </div>
-    <div class="sub-actions edit-only">
-      <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" onclick="openSubModal('${evId}','${s.id}')">
-        <i class="fas fa-pen" style="color:var(--accent2)"></i>
-      </button>
-      <button class="btn btn-ghost btn-sm btn-icon" title="Supprimer" onclick="confirmDeleteSub('${evId}','${s.id}')">
-        <i class="fas fa-trash" style="color:var(--danger)"></i>
-      </button>
-    </div>
-  </div>`;
-}
-
-function renderStats() {
-  const total   = events.length;
-  const overdue = events.filter(e => isEffectivelyLate(e)).length;
-  const ontime  = events.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0 && !isEffectivelyLate(e); }).length;
-  const subs    = events.reduce((a, e) => a + (e.sub || []).length, 0);
-  document.getElementById('statsBar').innerHTML = `
-    <div class="stat-card"><div class="val stat-accent">${total}</div><div class="lbl">Événements</div></div>
-    <div class="stat-card"><div class="val stat-danger">${overdue}</div><div class="lbl">En retard</div></div>
-    <div class="stat-card"><div class="val stat-success">${ontime}</div><div class="lbl">À temps</div></div>
-    <div class="stat-card"><div class="val stat-warn">${subs}</div><div class="lbl">Sous-événements</div></div>
-  `;
-}
-
-/* ─── Sub toggle ────────────────────────────────────── */
-function toggleSub(evId) {
-  const list    = document.getElementById(`sublist-${evId}`);
-  const toggle  = document.getElementById(`toggle-${evId}`);
-  if (!list) return;
-  list.classList.toggle('open');
-  toggle.classList.toggle('open');
-}
-function expandAll(open) {
-  events.forEach(e => {
-    const list   = document.getElementById(`sublist-${e.id}`);
-    const toggle = document.getElementById(`toggle-${e.id}`);
-    if (!list) return;
-    if (open)  { list.classList.add('open'); toggle && toggle.classList.add('open'); }
-    else       { list.classList.remove('open'); toggle && toggle.classList.remove('open'); }
+function addAttachFiles(e) {
+  const files = Array.from(e.target.files);
+  const readers = files.map(file => new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => resolve({
+      type: 'file',
+      name: file.name,
+      mime: file.type || 'application/octet-stream',
+      size: file.size,
+      data: ev.target.result,   /* base64 data-URL */
+    });
+    reader.readAsDataURL(file);
+  }));
+  Promise.all(readers).then(items => {
+    _pendingAttachments.push(...items);
+    _renderPending();
   });
+  e.target.value = '';
 }
 
-/* ─── Mode (read / edit) ────────────────────────────── */
-let currentMode = 'read';
-
-function setMode(mode) {
-  currentMode = mode;
-  if (mode === 'read') {
-    document.body.classList.add('read-only');
-    document.getElementById('btnRead').classList.add('active');
-    document.getElementById('btnEdit').classList.remove('active');
-  } else {
-    document.body.classList.remove('read-only');
-    document.getElementById('btnEdit').classList.add('active');
-    document.getElementById('btnRead').classList.remove('active');
-  }
+function removePending(idx) {
+  _pendingAttachments.splice(idx, 1);
+  _renderPending();
 }
 
-/* ─── Filter / sort ─────────────────────────────────── */
-function setFilter(f, el) {
-  filter = f;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderTimeline();
-}
-function sortEvents(key) {
-  sortKey = key;
-  renderTimeline();
-}
-function toggleDir() {
-  sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-  const btn = document.getElementById('dirBtn');
-  btn.innerHTML = sortDir === 'asc'
-    ? '<i class="fas fa-arrow-down-1-9"></i>'
-    : '<i class="fas fa-arrow-up-9-1"></i>';
-  btn.title = sortDir === 'asc' ? 'Ordre croissant' : 'Ordre decroissant';
-  renderTimeline();
+function _renderPending() {
+  const list = document.getElementById('attachPendingList');
+  if (!list) return;
+  list.innerHTML = _pendingAttachments.map((a, i) => `
+    <div class="attach-pending-item">
+      <i class="fas ${a.type === 'link' ? 'fa-link text-sky-500' : 'fa-paperclip text-slate-400'}"></i>
+      <span title="${escHtml(a.type === 'link' ? a.url : a.name)}">${escHtml(a.type === 'link' ? (a.label || a.url) : a.name)}</span>
+      ${a.size ? `<span style="color:var(--muted);flex-shrink:0">${_fmtSize(a.size)}</span>` : ''}
+      <button onclick="removePending(${i})" title="Retirer"><i class="fas fa-times"></i></button>
+    </div>`).join('');
 }
 
-/* ─── Modal helpers ─────────────────────────────────── */
+function _fmtSize(bytes) {
+  if (bytes < 1024)       return bytes + ' o';
+  if (bytes < 1048576)    return (bytes / 1024).toFixed(1) + ' Ko';
+  return (bytes / 1048576).toFixed(1) + ' Mo';
+}
+
+function _loadPending(attachments) {
+  _pendingAttachments = attachments ? attachments.map(a => ({ ...a })) : [];
+  _renderPending();
+}
+
+window._attachDownloadByName = function(dataUrl, name) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = name;
+  a.click();
+};
+
+/* shared toast */
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+  el.innerHTML = `<i class="fas ${icon}"></i> ${escHtml(msg)}`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+/* shared modal helpers */
 function openModal(id)  { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
@@ -1189,149 +927,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape')
     document.querySelectorAll('.modal-overlay.active').forEach(o => closeModal(o.id));
 });
+document.getElementById('eventModalClose').onclick  = () => closeModal('eventModal');
+document.getElementById('eventModalCancel').onclick = () => closeModal('eventModal');
+document.getElementById('subModalClose').onclick    = () => closeModal('subModal');
+document.getElementById('subModalCancel').onclick   = () => closeModal('subModal');
+document.getElementById('confirmCancel').onclick    = () => closeModal('confirmModal');
 
-/* ─── Event CRUD ────────────────────────────────────── */
-let editingEventId = null;
-
-function openEventModal(id) {
-  editingEventId = id || null;
-  const ev = id ? events.find(e => e.id === id) : null;
-  document.getElementById('eventModalTitle').textContent = ev ? 'Modifier l\'événement' : 'Nouvel événement';
-  document.getElementById('evLabel').value    = ev ? ev.label         : '';
-  document.getElementById('evDateInit').value = ev ? (ev.date_initiale || '') : '';
-  document.getElementById('evDateReal').value = ev ? (ev.date_reelle   || '') : '';
-  document.getElementById('evStatus').value   = ev ? (ev.status        || 'statut1') : 'statut1';
-  document.getElementById('evNote').value     = ev ? (ev.note          || '') : '';
-  openModal('eventModal');
-  setTimeout(() => document.getElementById('evLabel').focus(), 50);
-}
-
-async function saveEvent() {
-  const label    = document.getElementById('evLabel').value.trim();
-  const dateInit = document.getElementById('evDateInit').value;
-  const dateReal = document.getElementById('evDateReal').value;
-  const status   = document.getElementById('evStatus').value;
-  const note     = document.getElementById('evNote').value.trim();
-
-  if (!label)    { shake('evLabel'); return; }
-  if (!dateInit) { shake('evDateInit'); return; }
-
-  if (editingEventId) {
-    const ev = events.find(e => e.id === editingEventId);
-    const newReal = dateReal || null;
-    if (newReal !== ev.date_reelle) {
-      if (!ev.date_reelle_history) ev.date_reelle_history = [];
-      if (ev.date_reelle) ev.date_reelle_history.push({ date: ev.date_reelle, changed_at: new Date().toISOString() });
-    }
-    Object.assign(ev, { label, date_initiale: dateInit, date_reelle: newReal, status, note });
-    await dbPut(ev);
-    toast('Événement mis à jour', 'success');
-  } else {
-    const ev = { id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, status, note, date_reelle_history: [], sub: [] };
-    events.push(ev);
-    await dbPut(ev);
-    toast('Événement créé', 'success');
-  }
-  closeModal('eventModal');
-  renderTimeline();
-}
-
-function confirmDeleteEvent(id) {
-  const ev = events.find(e => e.id === id);
-  document.getElementById('confirmMsg').textContent = `Supprimer "${ev.label}" et tous ses sous-événements ?`;
-  document.getElementById('confirmOkBtn').onclick = () => deleteEvent(id);
-  openModal('confirmModal');
-}
-
-async function deleteEvent(id) {
-  events = events.filter(e => e.id !== id);
-  await dbDelete(id);
-  closeModal('confirmModal');
-  renderTimeline();
-  toast('Événement supprimé');
-}
-
-/* ─── Sub CRUD ──────────────────────────────────────── */
-let editingSubEventId = null;
-let editingSubId      = null;
-
-function openSubModal(evId, subId) {
-  editingSubEventId = evId;
-  editingSubId      = subId || null;
-  const ev  = events.find(e => e.id === evId);
-  const sub = subId ? (ev.sub || []).find(s => s.id === subId) : null;
-  document.getElementById('subModalTitle').textContent = sub ? 'Modifier le sous-événement' : 'Nouveau sous-événement';
-  document.getElementById('subLabel').value    = sub ? sub.label         : '';
-  document.getElementById('subDateInit').value = sub ? (sub.date_initiale || '') : '';
-  document.getElementById('subDateReal').value = sub ? (sub.date_reelle   || '') : '';
-  document.getElementById('subStatus').value   = sub ? (sub.status        || 'statut1') : 'statut1';
-  document.getElementById('subNote').value     = sub ? (sub.note          || '') : '';
-  openModal('subModal');
-  setTimeout(() => document.getElementById('subLabel').focus(), 50);
-}
-
-async function saveSub() {
-  const label    = document.getElementById('subLabel').value.trim();
-  const dateInit = document.getElementById('subDateInit').value;
-  const dateReal = document.getElementById('subDateReal').value;
-  const status   = document.getElementById('subStatus').value;
-  const note     = document.getElementById('subNote').value.trim();
-
-  if (!label)    { shake('subLabel'); return; }
-  if (!dateInit) { shake('subDateInit'); return; }
-
-  const ev = events.find(e => e.id === editingSubEventId);
-  if (!ev.sub) ev.sub = [];
-
-  if (editingSubId) {
-    const sub = ev.sub.find(s => s.id === editingSubId);
-    const newReal = dateReal || null;
-    if (newReal !== sub.date_reelle) {
-      if (!sub.date_reelle_history) sub.date_reelle_history = [];
-      if (sub.date_reelle) sub.date_reelle_history.push({ date: sub.date_reelle, changed_at: new Date().toISOString() });
-    }
-    Object.assign(sub, { label, date_initiale: dateInit, date_reelle: newReal, status, note });
-    toast('Sous-événement mis à jour', 'success');
-  } else {
-    ev.sub.push({ id: uid(), label, date_initiale: dateInit, date_reelle: dateReal || null, status, note, date_reelle_history: [] });
-    toast('Sous-événement créé', 'success');
-  }
-  await dbPut(ev);
-  closeModal('subModal');
-  const wasOpen = document.getElementById(`sublist-${ev.id}`)?.classList.contains('open');
-  renderTimeline();
-  if (wasOpen) toggleSub(ev.id);  // keep expanded
-}
-
-function confirmDeleteSub(evId, subId) {
-  const ev  = events.find(e => e.id === evId);
-  const sub = (ev.sub || []).find(s => s.id === subId);
-  document.getElementById('confirmMsg').textContent = `Supprimer "${sub.label}" ?`;
-  document.getElementById('confirmOkBtn').onclick = () => deleteSub(evId, subId);
-  openModal('confirmModal');
-}
-
-async function deleteSub(evId, subId) {
-  const ev = events.find(e => e.id === evId);
-  ev.sub   = (ev.sub || []).filter(s => s.id !== subId);
-  await dbPut(ev);
-  closeModal('confirmModal');
-  renderTimeline();
-  toast('Sous-événement supprimé');
-}
-
-/* ─── Toast ─────────────────────────────────────────── */
-function toast(msg, type = '') {
-  const el  = document.createElement('div');
-  el.className = `toast ${type}`;
-  const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
-  el.innerHTML = `<i class="fas ${icon}"></i> ${escHtml(msg)}`;
-  const container = document.getElementById('toastContainer');
-  container.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
-
-/* ─── Validation shake ──────────────────────────────── */
+/* shared shake */
 function shake(id) {
   const el = document.getElementById(id);
   el.style.borderColor = 'var(--danger)';
@@ -1342,150 +944,924 @@ function shake(id) {
   });
 }
 
-/* ─── Escape HTML ───────────────────────────────────── */
-function escHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+/* shared history-popover close */
+document.addEventListener('click', () =>
+  document.querySelectorAll('.history-popover.open').forEach(p => p.classList.remove('open'))
+);
 
-/* ─── Export ────────────────────────────────────────── */
-function toggleExport(e) {
-  e.stopPropagation();
-  document.getElementById('exportMenu').classList.toggle('open');
-}
-document.addEventListener('click', () => document.getElementById('exportMenu').classList.remove('open'));
+/* ════════════════════════════════════════════════════════
+   IndexedDB — one store per timeline (keyed by dbStore name)
+════════════════════════════════════════════════════════ */
+const DB_NAME = 'spr_timeline';
 
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
-  download(blob, 'timeline.json');
-}
+let _db      = null;
+let _dbReady = null;
 
-function exportCSV() {
-  const rows = [['id','label','date_initiale','date_reelle','note','sub_id','sub_label','sub_date_initiale','sub_date_reelle','sub_status','sub_note']];
-  events.forEach(ev => {
-    if (!ev.sub || ev.sub.length === 0) {
-      rows.push([ev.id, ev.label, ev.date_initiale||'', ev.date_reelle||'', ev.note||'', '', '', '', '', '', '']);
-    } else {
-      ev.sub.forEach(s => {
-        rows.push([ev.id, ev.label, ev.date_initiale||'', ev.date_reelle||'', ev.note||'', s.id, s.label, s.date_initiale||'', s.date_reelle||'', s.status||'', s.note||'']);
-      });
-    }
+/* Open at the browser's current version (no version arg = current version).
+   Never request a lower version — that causes VersionError. */
+function getDB() {
+  if (_dbReady) return _dbReady;
+  _dbReady = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME); /* no version = open at existing version */
+    req.onupgradeneeded = e => {
+      /* Runs only on very first ever open (version 0→1). */
+      if (!e.target.result.objectStoreNames.contains('events'))
+        e.target.result.createObjectStore('events', { keyPath: 'id' });
+    };
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onerror   = () => reject(req.error);
   });
-  const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  download(blob, 'timeline.csv');
+  return _dbReady;
 }
 
-function download(blob, name) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
+/* Ensure a named store exists, bumping the version only when necessary. */
+function ensureStore(db, store) {
+  if (db.objectStoreNames.contains(store)) return Promise.resolve(db);
+  return new Promise((resolve, reject) => {
+    const newVer = db.version + 1;
+    db.close();
+    _db = null; _dbReady = null;
+    const req = indexedDB.open(DB_NAME, newVer);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(store))
+        d.createObjectStore(store, { keyPath: 'id' });
+    };
+    req.onsuccess = e => { _db = e.target.result; _dbReady = Promise.resolve(_db); resolve(_db); };
+    req.onerror   = () => reject(req.error);
+  });
 }
 
-/* ─── Import ────────────────────────────────────────── */
-function importJSON() {
-  document.getElementById('fileInput').click();
+function dbAll(store) {
+  return getDB().then(db => new Promise((res, rej) => {
+    if (!db.objectStoreNames.contains(store)) { res([]); return; }
+    const req = db.transaction(store, 'readonly').objectStore(store).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  }));
 }
 
-async function handleImport(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if (!Array.isArray(data)) throw new Error('Format invalide');
-    await dbClear();
-    events = [];
-    for (const ev of data) {
-      if (!ev.id) ev.id = uid();
-      if (!ev.sub) ev.sub = [];
-      events.push(ev);
-      await dbPut(ev);
-    }
-    renderTimeline();
-    toast(`${data.length} événement(s) importé(s)`, 'success');
-  } catch (err) {
-    toast('Erreur d\'importation: ' + err.message, 'error');
+function dbPut(store, obj) {
+  return getDB().then(db => ensureStore(db, store)).then(db => new Promise((res, rej) => {
+    const req = db.transaction(store, 'readwrite').objectStore(store).put(obj);
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  }));
+}
+
+function dbDelete(store, id) {
+  return getDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction(store, 'readwrite').objectStore(store).delete(id);
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  }));
+}
+
+function dbClear(store) {
+  return getDB().then(db => new Promise((res, rej) => {
+    const req = db.transaction(store, 'readwrite').objectStore(store).clear();
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  }));
+}
+
+/* ════════════════════════════════════════════════════════
+   Timeline class
+════════════════════════════════════════════════════════ */
+class Timeline {
+  /**
+   * @param {object} options
+   * @param {HTMLElement|string} options.container  – target element or CSS selector
+   * @param {string}  options.title                 – panel heading
+   * @param {string}  options.dbStore               – IndexedDB store name (unique per timeline)
+   * @param {Array}   [options.seedData]             – initial demo rows if store is empty
+   * @param {string}  [options.initialMode]          – 'read' | 'edit'  (default 'read')
+   * @param {boolean} [options.showStats]            – show stats / KPI filter bar (default true)
+   * @param {boolean} [options.showHeader]           – show panel header with title/controls (default true)
+   */
+  constructor(options = {}) {
+    const {
+      container,
+      title       = 'Timeline',
+      dbStore     = 'events',
+      seedData    = [],
+      initialMode = 'read',
+      showStats   = true,
+      showHeader  = true,
+    } = options;
+
+    this.title      = title;
+    this.store      = dbStore;
+    this.seed       = seedData;
+    this.showStats  = showStats;
+    this.showHeader = showHeader;
+
+    this.events  = [];
+    this.filter  = 'all';
+    this.sortKey = 'date_initiale';
+    this.sortDir = 'asc';
+    this.mode    = initialMode;
+
+    this._editingEventId = null;
+    this._editingSubEventId = null;
+    this._editingSubId      = null;
+
+    /* resolve container */
+    this.host = typeof container === 'string'
+      ? document.querySelector(container)
+      : container;
+    if (!this.host) throw new Error(`Timeline: container not found — "${container}"`);
+    this.host.classList.add('tl-host');
+
+    this._buildDOM();
+    this._bindEvents();
   }
-  e.target.value = '';
+
+  /* ── DOM scaffold ─────────────────────────────────── */
+  _buildDOM() {
+    const id = this.store; /* use store name as namespace for DOM IDs */
+
+    this.host.innerHTML = `
+      <!-- panel header -->
+      ${this.showHeader ? `<div class="tl-panel-header">`  : '<!--'}
+        <div class="tl-panel-title">
+          <i class="fas fa-stream" style="color:var(--accent)"></i>
+          ${escHtml(this.title)}
+        </div>
+        <div class="tl-panel-actions">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="${id}-search" placeholder="Rechercher…" />
+          </div>
+          <!-- mode toggle -->
+          <div class="mode-toggle">
+            <button class="mode-btn read-mode-btn ${this.mode==='read'?'active':''}" data-mode="read">
+              <i class="fas fa-eye"></i><span>Lecture</span>
+            </button>
+            <button class="mode-btn edit-mode-btn ${this.mode==='edit'?'active':''}" data-mode="edit">
+              <i class="fas fa-pen-to-square"></i><span>Édition</span>
+            </button>
+          </div>
+          <!-- export -->
+          <div class="export-menu edit-only" id="${id}-exportMenu">
+            <button class="btn btn-ghost btn-sm" data-action="toggleExport">
+              <i class="fas fa-download"></i><span>Export</span>
+            </button>
+            <div class="export-dropdown">
+              <div class="export-option" data-action="exportJSON"><i class="fas fa-file-code"></i> JSON</div>
+              <div class="export-option" data-action="exportCSV"><i class="fas fa-file-csv"></i> CSV</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm edit-only" data-action="importJSON" title="Importer JSON">
+            <i class="fas fa-upload"></i>
+          </button>
+          <button class="btn btn-primary btn-sm edit-only" data-action="openEventModal">
+            <i class="fas fa-plus"></i><span>Événement</span>
+          </button>
+        </div>
+      ${this.showHeader ? `</div>` : '-->'}
+
+      <!-- stats / KPI filters -->
+      ${this.showStats ? `<div class="stats-bar" id="${id}-stats"></div>` : ''}
+
+      <!-- timeline -->
+      <div class="timeline-wrapper" id="${id}-wrapper"></div>
+    `;
+
+    this._applyMode(this.mode);
+  }
+
+  /* ── Event binding ────────────────────────────────── */
+  _bindEvents() {
+    const id = this.store;
+
+    /* search */
+    this.host.querySelector(`#${id}-search`).addEventListener('input', () => this._render());
+
+    /* mode toggle */
+    this.host.querySelectorAll('.mode-btn').forEach(btn =>
+      btn.addEventListener('click', () => this._applyMode(btn.dataset.mode))
+    );
+
+    /* KPI cards as filters */
+    this.host.addEventListener('click', e => {
+      const card = e.target.closest('.stat-card[data-filter]');
+      if (!card) return;
+      const f = card.dataset.filter;
+      this.filter = this.filter === f ? 'all' : f; /* toggle off if already active */
+      this._renderStats();
+      this._render();
+    });
+
+    /* sort select — delegated because element is re-created on each _render() */
+    this.host.addEventListener('change', e => {
+      if (e.target.id === `${id}-sortSelect`) {
+        this.sortKey = e.target.value;
+        this._render();
+      }
+    });
+
+    /* toolbar actions (data-action) */
+    this.host.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'toggleToolbar') {
+        e.stopPropagation();
+        this.host.querySelector(`#${id}-toolbarToggle`).classList.toggle('open');
+        this.host.querySelector(`#${id}-toolbarControls`).classList.toggle('open');
+      }
+      if (action === 'toggleDir')    { e.stopPropagation(); this._toggleDir(); }
+      if (action === 'expandAll')    this._expandAll(true);
+      if (action === 'collapseAll')  this._expandAll(false);
+      if (action === 'toggleExport') { e.stopPropagation(); this.host.querySelector(`#${id}-exportMenu`).classList.toggle('open'); }
+      if (action === 'exportJSON')   this._exportJSON();
+      if (action === 'exportCSV')    this._exportCSV();
+      if (action === 'importJSON')   this._triggerImport();
+      if (action === 'openEventModal') this._openEventModal();
+    });
+
+    /* close export dropdown on outside click */
+    document.addEventListener('click', () =>
+      this.host.querySelector(`#${id}-exportMenu`)?.classList.remove('open')
+    );
+
+    /* delegated: event-card & sub-item actions rendered dynamically */
+    this.host.addEventListener('click', e => {
+      const t = e.target.closest('[data-ev-action]');
+      if (!t) return;
+      const { evAction, evId, subId } = t.dataset;
+      if (evAction === 'edit-event')   this._openEventModal(evId);
+      if (evAction === 'del-event')    this._confirmDeleteEvent(evId);
+      if (evAction === 'toggle-sub')   this._toggleSub(evId);
+      if (evAction === 'open-sub')     this._openSubModal(evId);
+      if (evAction === 'edit-sub')     this._openSubModal(evId, subId);
+      if (evAction === 'del-sub')      this._confirmDeleteSub(evId, subId);
+      if (evAction === 'history-pop')   { e.stopPropagation(); this._toggleHistoryPop(t.dataset.popId); }
+      if (evAction === 'download-attach') { window._attachDownloadByName(t.dataset.attachData, t.dataset.attachName); }
+    });
+
+    /* hidden file input for import */
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', e => this._handleImport(e));
+
+    /* shared modal save buttons — delegate to whichever instance opened them */
+    document.getElementById('eventModalSave').onclick = () => this._saveEvent();
+    document.getElementById('subModalSave').onclick   = () => this._saveSub();
+  }
+
+  /* ── Mode ─────────────────────────────────────────── */
+  _applyMode(mode) {
+    this.mode = mode;
+    if (mode === 'read') {
+      this.host.classList.add('read-only');
+    } else {
+      this.host.classList.remove('read-only');
+    }
+    this.host.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+  }
+
+  /* ── Render ───────────────────────────────────────── */
+  _render() {
+    const id   = this.store;
+    const q    = (this.host.querySelector(`#${id}-search`).value || '').toLowerCase();
+    const wrap = this.host.querySelector(`#${id}-wrapper`);
+
+    let list = [...this.events];
+
+    if (this.filter === 'overdue') list = list.filter(e => daysDiff(e.date_initiale, e.date_reelle) > 0);
+    if (this.filter === 'ontime')  list = list.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0; });
+    if (this.filter === 'no-real') list = list.filter(e => !e.date_reelle);
+
+    if (q) list = list.filter(e =>
+      e.label.toLowerCase().includes(q) ||
+      (e.note || '').toLowerCase().includes(q) ||
+      (e.sub || []).some(s => s.label.toLowerCase().includes(q))
+    );
+
+    list = this._sort(list, this.sortKey);
+
+    if (list.length === 0) {
+      wrap.innerHTML = `<div class="empty-state">
+        <i class="fas fa-calendar-times"></i>
+        <p>Aucun événement trouvé.</p>
+        <button class="btn btn-primary edit-only" data-action="openEventModal"><i class="fas fa-plus"></i> Ajouter un événement</button>
+      </div>`;
+      this._renderStats();
+      return;
+    }
+
+    const toolbarHtml = `
+      <div class="cap-toolbar">
+        <button class="toolbar-toggle" id="${id}-toolbarToggle" data-action="toggleToolbar">
+          <i class="fas fa-sliders-h" style="font-size:.6rem"></i> Trier
+          <i class="fas fa-chevron-down t-chevron" style="font-size:.55rem"></i>
+        </button>
+        <div class="toolbar-controls" id="${id}-toolbarControls">
+          <button class="btn btn-ghost btn-sm" data-action="toggleDir" id="${id}-dirBtn" title="Ordre">
+            <i class="fas fa-arrow-down-1-9"></i>
+          </button>
+          <button class="btn btn-ghost btn-sm" data-action="expandAll" title="Tout déplier"><i class="fas fa-expand-alt"></i></button>
+          <button class="btn btn-ghost btn-sm" data-action="collapseAll" title="Tout replier"><i class="fas fa-compress-alt"></i></button>
+          <select class="form-control" id="${id}-sortSelect" style="width:auto;padding:3px 6px;font-size:var(--text-xs)">
+            <option value="date_initiale">Date initiale</option>
+            <option value="date_reelle">Date réelle</option>
+            <option value="label">Nom</option>
+          </select>
+        </div>
+      </div>`;
+    const capDebut = `<div class="timeline-cap cap-start"><span class="cap-label">Début</span>${toolbarHtml}</div>`;
+    const capFin   = `<div class="timeline-cap cap-end"><span class="cap-label">Fin</span></div>`;
+    const [capTop, capBot] = this.sortDir === 'asc' ? [capDebut, capFin] : [capFin, capDebut];
+    wrap.innerHTML = capTop + list.map(ev => this._renderEvent(ev)).join('') + capBot;
+    /* restore select value after re-render */
+    const sel = this.host.querySelector(`#${id}-sortSelect`);
+    if (sel) sel.value = this.sortKey;
+    this._renderStats();
+  }
+
+  _sort(list, key) {
+    if (key === 'label') {
+      const sorted = [...list].sort((a, b) => a.label.localeCompare(b.label));
+      return this.sortDir === 'desc' ? sorted.reverse() : sorted;
+    }
+    const dated   = list.filter(e => e[key]);
+    const undated = list.filter(e => !e[key]);
+    dated.sort((a, b) => a[key].localeCompare(b[key]));
+    if (this.sortDir === 'desc') { dated.reverse(); undated.reverse(); return [...undated, ...dated]; }
+    return [...dated, ...undated];
+  }
+
+  _renderEvent(ev) {
+    const delta    = fmtDelta(daysDiff(ev.date_initiale, ev.date_reelle));
+    const odClass  = this._overdueClass(ev);
+    const effSt    = this._effectiveStatus(ev);
+    const subs     = ev.sub || [];
+    const noteHtml = ev.note
+      ? `<div class="px-5 pb-4 pt-2.5 text-slate-500 leading-relaxed border-t border-slate-100" style="font-size:var(--text-sm)">${escHtml(ev.note)}</div>`
+      : '';
+    const subItems = subs.map(s => this._renderSub(ev.id, s)).join('');
+
+    /* date chip helpers */
+    const chipBase = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold font-mono tabular-nums';
+    const chipInit = `${chipBase} bg-sky-100 text-sky-700`;
+    const chipLate = `${chipBase} bg-red-100 text-red-700`;
+    const chipEarly= `${chipBase} bg-green-100 text-green-700`;
+
+    const subSection = subs.length > 0 ? `
+      <div class="sub-toggle" id="${this.store}-toggle-${ev.id}"
+           data-ev-action="toggle-sub" data-ev-id="${ev.id}">
+        <i class="fas fa-sitemap" style="color:var(--accent2)"></i>
+        ${subs.length} sous-événement${subs.length > 1 ? 's' : ''}
+        <span class="count-badge">${subs.filter(s=>s.status==='statut4').length}/${subs.length}</span>
+        <i class="fas fa-chevron-down chevron"></i>
+      </div>
+      <div class="sub-list" id="${this.store}-sublist-${ev.id}">
+        ${subItems}
+        <div class="add-sub-row edit-only">
+          <button class="btn btn-ghost btn-sm" data-ev-action="open-sub" data-ev-id="${ev.id}">
+            <i class="fas fa-plus"></i> Sous-événement
+          </button>
+        </div>
+      </div>
+    ` : `
+      <div class="sub-toggle" style="cursor:default;border-top:1px solid var(--border)">
+        <i class="fas fa-sitemap" style="color:#e2e8f0"></i>
+        <span class="opacity-50 text-xs">Aucun sous-événement</span>
+        <button class="btn btn-ghost btn-sm edit-only" style="margin-left:auto"
+                data-ev-action="open-sub" data-ev-id="${ev.id}">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+    `;
+
+    return `
+    <div class="event-card ${odClass}" id="${this.store}-event-${ev.id}" data-id="${ev.id}">
+      ${subs.length > 0 ? `<span class="event-dot has-subs" data-ev-action="toggle-sub" data-ev-id="${ev.id}"></span>` : ''}
+      <div class="event-header">
+        <div class="event-header-left">
+          <div class="font-bold tracking-tight leading-snug text-slate-900 mb-2 break-words" style="font-size:var(--text-base)">${escHtml(ev.label)}</div>
+          <div class="flex flex-wrap gap-1.5 items-center">
+            <span class="${chipInit}"><i class="fas fa-calendar"></i>${fmtDate(ev.date_initiale)}</span>
+            ${ev.date_reelle
+              ? `<span class="${daysDiff(ev.date_initiale, ev.date_reelle) > 0 ? chipLate : chipEarly}"><i class="fas fa-calendar-check"></i>${fmtDate(ev.date_reelle)}${this._historyBadgeHtml(ev, ev.id)}</span>`
+              : this._isLate(ev) ? `<span class="${chipLate}" title="Date du jour"><i class="fas fa-calendar-day"></i>Aujourd'hui</span>` : ''}
+            ${delta}
+            ${effSt === 'retard' ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-800" style="font-size:var(--text-xs)"><i class="fas fa-triangle-exclamation"></i> En retard</span>` : ''}
+          </div>
+        </div>
+        <div class="event-actions edit-only">
+          <button class="btn btn-ghost btn-sm btn-icon" title="Modifier"
+                  data-ev-action="edit-event" data-ev-id="${ev.id}">
+            <i class="fas fa-pen" style="color:var(--accent)"></i>
+          </button>
+          <button class="btn btn-ghost btn-sm btn-icon" title="Supprimer"
+                  data-ev-action="del-event" data-ev-id="${ev.id}">
+            <i class="fas fa-trash" style="color:var(--danger)"></i>
+          </button>
+        </div>
+      </div>
+      ${noteHtml}
+      ${subSection}
+    </div>`;
+  }
+
+  _renderSub(evId, s) {
+    const delta = fmtDelta(daysDiff(s.date_initiale, s.date_reelle));
+    const effS  = this._effectiveStatus(s);
+
+    const badgeCls = {
+      statut1: 'bg-slate-100 text-slate-500',
+      statut2: 'bg-amber-100 text-amber-800',
+      statut3: 'bg-sky-100 text-sky-700',
+      statut4: 'bg-green-100 text-green-700',
+      retard:  'bg-red-100 text-red-800',
+    };
+    const chipBase  = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold font-mono tabular-nums';
+    const chipInit  = `${chipBase} bg-sky-100 text-sky-700`;
+    const chipLate  = `${chipBase} bg-red-100 text-red-700`;
+    const chipEarly = `${chipBase} bg-green-100 text-green-700`;
+
+    return `
+    <div class="sub-item ${STATUS_DOT_EXT[effS] || 's1'}" id="${this.store}-sub-${evId}-${s.id}">
+      <div class="sub-info">
+        <div class="font-semibold text-slate-700 leading-snug break-words" style="font-size:var(--text-sm)">${escHtml(s.label)}</div>
+        <div class="flex flex-wrap gap-1.5 mt-1 items-center">
+          <span class="${chipInit}" style="font-size:var(--text-xs)"><i class="fas fa-calendar"></i>${fmtDate(s.date_initiale)}</span>
+          ${s.date_reelle
+            ? `<span class="${daysDiff(s.date_initiale, s.date_reelle) > 0 ? chipLate : chipEarly}" style="font-size:var(--text-xs)"><i class="fas fa-calendar-check"></i>${fmtDate(s.date_reelle)}${this._historyBadgeHtml(s, evId + '-' + s.id)}</span>`
+            : this._isLate(s) ? `<span class="${chipLate}" style="font-size:var(--text-xs)" title="Date du jour"><i class="fas fa-calendar-day"></i>Aujourd'hui</span>` : ''}
+          ${delta}
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded-full font-bold tracking-wide ${badgeCls[effS] || badgeCls.statut1}" style="font-size:var(--text-xs)">${STATUS_LABELS_EXT[effS] || s.status}</span>
+        </div>
+        ${s.note ? `<div class="mt-1 text-slate-400 text-pretty" style="font-size:var(--text-xs)">${escHtml(s.note)}</div>` : ''}
+        ${this._attachChipsHtml(s.attachments)}
+      </div>
+      <div class="sub-actions edit-only">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Modifier"
+                data-ev-action="edit-sub" data-ev-id="${evId}" data-sub-id="${s.id}">
+          <i class="fas fa-pen" style="color:var(--accent2)"></i>
+        </button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Supprimer"
+                data-ev-action="del-sub" data-ev-id="${evId}" data-sub-id="${s.id}">
+          <i class="fas fa-trash" style="color:var(--danger)"></i>
+        </button>
+      </div>
+    </div>`;
+  }
+
+  _attachChipsHtml(attachments) {
+    if (!attachments || attachments.length === 0) return '';
+    const chips = attachments.map(a => {
+      if (a.type === 'link') {
+        return `<a class="attach-chip" href="${escHtml(a.url)}" target="_blank" rel="noopener" title="${escHtml(a.url)}">
+          <i class="fas fa-link"></i><span>${escHtml(a.label || a.url)}</span>
+        </a>`;
+      }
+      /* file: store data in a data attribute, handled by delegated listener */
+      const nameEsc = escHtml(a.name);
+      return `<span class="attach-chip" data-ev-action="download-attach"
+          data-attach-name="${nameEsc}" data-attach-data="${escHtml(a.data)}" title="${nameEsc}">
+        <i class="fas fa-paperclip"></i><span>${nameEsc}</span>
+        ${a.size ? `<span style="opacity:.6;font-size:.65rem;flex-shrink:0">${_fmtSize(a.size)}</span>` : ''}
+      </span>`;
+    }).join('');
+    return `<div class="attach-list">${chips}</div>`;
+  }
+
+  _renderStats() {
+    if (!this.showStats) return;
+    const id      = this.store;
+    const total   = this.events.length;
+    const overdue = this.events.filter(e => this._isLate(e)).length;
+    const ontime  = this.events.filter(e => { const d = daysDiff(e.date_initiale, e.date_reelle); return d !== null && d <= 0 && !this._isLate(e); }).length;
+    const subs    = this.events.reduce((a, e) => a + (e.sub || []).length, 0);
+    const el = this.host.querySelector(`#${id}-stats`);
+    if (!el) return;
+    const f   = this.filter;
+    const val = 'font-extrabold tracking-tighter leading-none';
+    const lbl = 'mt-1 font-bold text-slate-400 uppercase tracking-widest';
+    const sz  = 'font-size:clamp(1.3rem,3.5vw,1.8rem)';
+    const szl = 'font-size:var(--text-xs)';
+    const tip = ' title="Cliquer pour filtrer"';
+    el.innerHTML = `
+      <div class="stat-card ${f==='all'?'active':''}"           data-filter="all"${tip}>
+        <div class="${val} text-sky-500"   style="${sz}">${total}</div>
+        <div class="${lbl}" style="${szl}">Tous</div>
+      </div>
+      <div class="stat-card ${f==='overdue'?'active-danger':''}"  data-filter="overdue"${tip}>
+        <div class="${val} text-red-500"   style="${sz}">${overdue}</div>
+        <div class="${lbl}" style="${szl}">En retard</div>
+      </div>
+      <div class="stat-card ${f==='ontime'?'active-success':''}"  data-filter="ontime"${tip}>
+        <div class="${val} text-green-500" style="${sz}">${ontime}</div>
+        <div class="${lbl}" style="${szl}">À temps</div>
+      </div>
+      <div class="stat-card ${f==='no-real'?'active-warn':''}"    data-filter="no-real"${tip}>
+        <div class="${val} text-amber-500" style="${sz}">${subs}</div>
+        <div class="${lbl}" style="${szl}">Sans date</div>
+      </div>
+    `;
+  }
+
+  /* ── Status helpers ───────────────────────────────── */
+  _isLate(obj) {
+    if (DONE_STATUSES.has(obj.status)) return false;
+    return daysDiff(obj.date_initiale, obj.date_reelle) > 0;
+  }
+
+  _effectiveStatus(obj) {
+    if (!DONE_STATUSES.has(obj.status) && this._isLate(obj)) return 'retard';
+    return obj.status || 'statut1';
+  }
+
+  _overdueClass(ev) {
+    const d = daysDiff(ev.date_initiale, ev.date_reelle);
+    if (d === null) return '';
+    if (this._isLate(ev)) return 'overdue';
+    if (d <= 0) return 'on-time';
+    return '';
+  }
+
+  /* ── History badge ────────────────────────────────── */
+  _historyBadgeHtml(obj, uid) {
+    const hist = obj.date_reelle_history;
+    if (!hist || hist.length === 0) return '';
+    const popId = `${this.store}-hist-${uid}`;
+    const entries = hist.map((h, i) => `
+      <div class="history-entry">
+        <span class="h-idx">${i + 1}</span>
+        <span class="h-date">${fmtDate(h.date)}</span>
+        <span class="h-when">${fmtRelative(h.changed_at)}</span>
+      </div>`).join('');
+    return `
+      <span class="history-wrap">
+        <span class="history-badge"
+              data-ev-action="history-pop" data-pop-id="${popId}"
+              title="${hist.length} modification(s)">${hist.length}</span>
+        <div class="history-popover" id="${popId}">
+          <h4><i class="fas fa-history"></i> Historique date réelle</h4>
+          ${entries}
+          <div class="history-entry" style="border-top:1px solid #f1f5f9;margin-top:4px;padding-top:6px">
+            <span class="h-idx" style="background:var(--accent);color:#fff">${hist.length + 1}</span>
+            <span class="h-date" style="color:var(--accent)">${fmtDate(obj.date_reelle)} <em style="font-weight:400;font-size:.7rem">(actuelle)</em></span>
+          </div>
+        </div>
+      </span>`;
+  }
+
+  _toggleHistoryPop(popId) {
+    const el = document.getElementById(popId);
+    if (!el) return;
+    const isOpen = el.classList.contains('open');
+    document.querySelectorAll('.history-popover.open').forEach(p => p.classList.remove('open'));
+    if (!isOpen) el.classList.add('open');
+  }
+
+  /* ── Sub toggle ───────────────────────────────────── */
+  _toggleSub(evId) {
+    const list   = this.host.querySelector(`#${this.store}-sublist-${evId}`);
+    const toggle = this.host.querySelector(`#${this.store}-toggle-${evId}`);
+    if (!list) return;
+    list.classList.toggle('open');
+    toggle?.classList.toggle('open');
+  }
+
+  _expandAll(open) {
+    this.events.forEach(e => {
+      const list   = this.host.querySelector(`#${this.store}-sublist-${e.id}`);
+      const toggle = this.host.querySelector(`#${this.store}-toggle-${e.id}`);
+      if (!list) return;
+      list.classList.toggle('open', open);
+      toggle?.classList.toggle('open', open);
+    });
+  }
+
+  /* ── Sort direction toggle ────────────────────────── */
+  _toggleDir() {
+    this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    const btn = this.host.querySelector(`#${this.store}-dirBtn`);
+    btn.innerHTML = this.sortDir === 'asc'
+      ? '<i class="fas fa-arrow-down-1-9"></i>'
+      : '<i class="fas fa-arrow-up-9-1"></i>';
+    this._render();
+  }
+
+  /* ── Event CRUD ───────────────────────────────────── */
+  _openEventModal(id) {
+    this._editingEventId = id || null;
+    const ev = id ? this.events.find(e => e.id === id) : null;
+    document.getElementById('eventModalTitle').textContent = ev ? 'Modifier l\'événement' : 'Nouvel événement';
+    document.getElementById('evLabel').value    = ev?.label         ?? '';
+    document.getElementById('evDateInit').value = ev?.date_initiale ?? '';
+    document.getElementById('evDateReal').value = ev?.date_reelle   ?? '';
+    document.getElementById('evStatus').value   = ev?.status        ?? 'statut1';
+    document.getElementById('evNote').value     = ev?.note          ?? '';
+    openModal('eventModal');
+    setTimeout(() => document.getElementById('evLabel').focus(), 50);
+  }
+
+  async _saveEvent() {
+    const label    = document.getElementById('evLabel').value.trim();
+    const dateInit = document.getElementById('evDateInit').value;
+    const dateReal = document.getElementById('evDateReal').value || null;
+    const status   = document.getElementById('evStatus').value;
+    const note     = document.getElementById('evNote').value.trim();
+
+    if (!label)    { shake('evLabel');    return; }
+    if (!dateInit) { shake('evDateInit'); return; }
+
+    if (this._editingEventId) {
+      const ev = this.events.find(e => e.id === this._editingEventId);
+      if (dateReal !== ev.date_reelle) {
+        if (!ev.date_reelle_history) ev.date_reelle_history = [];
+        if (ev.date_reelle) ev.date_reelle_history.push({ date: ev.date_reelle, changed_at: new Date().toISOString() });
+      }
+      Object.assign(ev, { label, date_initiale: dateInit, date_reelle: dateReal, status, note });
+      await dbPut(this.store, ev);
+      toast('Événement mis à jour', 'success');
+    } else {
+      const ev = { id: uid(), label, date_initiale: dateInit, date_reelle: dateReal, status, note, date_reelle_history: [], sub: [] };
+      this.events.push(ev);
+      await dbPut(this.store, ev);
+      toast('Événement créé', 'success');
+    }
+    closeModal('eventModal');
+    this._render();
+  }
+
+  _confirmDeleteEvent(id) {
+    const ev = this.events.find(e => e.id === id);
+    document.getElementById('confirmMsg').textContent = `Supprimer "${ev.label}" et tous ses sous-événements ?`;
+    document.getElementById('confirmOkBtn').onclick = () => this._deleteEvent(id);
+    openModal('confirmModal');
+  }
+
+  async _deleteEvent(id) {
+    this.events = this.events.filter(e => e.id !== id);
+    await dbDelete(this.store, id);
+    closeModal('confirmModal');
+    this._render();
+    toast('Événement supprimé');
+  }
+
+  /* ── Sub CRUD ─────────────────────────────────────── */
+  _openSubModal(evId, subId) {
+    this._editingSubEventId = evId;
+    this._editingSubId      = subId || null;
+    const ev  = this.events.find(e => e.id === evId);
+    const sub = subId ? (ev.sub || []).find(s => s.id === subId) : null;
+    document.getElementById('subModalTitle').textContent = sub ? 'Modifier le sous-événement' : 'Nouveau sous-événement';
+    document.getElementById('subLabel').value    = sub?.label         ?? '';
+    document.getElementById('subDateInit').value = sub?.date_initiale ?? '';
+    document.getElementById('subDateReal').value = sub?.date_reelle   ?? '';
+    document.getElementById('subStatus').value   = sub?.status        ?? 'statut1';
+    document.getElementById('subNote').value     = sub?.note          ?? '';
+    _loadPending(sub?.attachments ?? []);
+    switchAttachTab('link');
+    openModal('subModal');
+    setTimeout(() => document.getElementById('subLabel').focus(), 50);
+  }
+
+  async _saveSub() {
+    const label    = document.getElementById('subLabel').value.trim();
+    const dateInit = document.getElementById('subDateInit').value;
+    const dateReal = document.getElementById('subDateReal').value || null;
+    const status   = document.getElementById('subStatus').value;
+    const note     = document.getElementById('subNote').value.trim();
+
+    if (!label)    { shake('subLabel');    return; }
+    if (!dateInit) { shake('subDateInit'); return; }
+
+    const ev = this.events.find(e => e.id === this._editingSubEventId);
+    if (!ev.sub) ev.sub = [];
+
+    const attachments = [..._pendingAttachments];
+
+    if (this._editingSubId) {
+      const sub = ev.sub.find(s => s.id === this._editingSubId);
+      if (dateReal !== sub.date_reelle) {
+        if (!sub.date_reelle_history) sub.date_reelle_history = [];
+        if (sub.date_reelle) sub.date_reelle_history.push({ date: sub.date_reelle, changed_at: new Date().toISOString() });
+      }
+      Object.assign(sub, { label, date_initiale: dateInit, date_reelle: dateReal, status, note, attachments });
+      toast('Sous-événement mis à jour', 'success');
+    } else {
+      ev.sub.push({ id: uid(), label, date_initiale: dateInit, date_reelle: dateReal, status, note, attachments, date_reelle_history: [] });
+      toast('Sous-événement créé', 'success');
+    }
+    await dbPut(this.store, ev);
+    closeModal('subModal');
+    const wasOpen = this.host.querySelector(`#${this.store}-sublist-${ev.id}`)?.classList.contains('open');
+    this._render();
+    if (wasOpen) this._toggleSub(ev.id);
+  }
+
+  _confirmDeleteSub(evId, subId) {
+    const ev  = this.events.find(e => e.id === evId);
+    const sub = (ev.sub || []).find(s => s.id === subId);
+    document.getElementById('confirmMsg').textContent = `Supprimer "${sub.label}" ?`;
+    document.getElementById('confirmOkBtn').onclick = () => this._deleteSub(evId, subId);
+    openModal('confirmModal');
+  }
+
+  async _deleteSub(evId, subId) {
+    const ev = this.events.find(e => e.id === evId);
+    ev.sub   = (ev.sub || []).filter(s => s.id !== subId);
+    await dbPut(this.store, ev);
+    closeModal('confirmModal');
+    this._render();
+    toast('Sous-événement supprimé');
+  }
+
+  /* ── Export / Import ──────────────────────────────── */
+  _exportJSON() {
+    const blob = new Blob([JSON.stringify(this.events, null, 2)], { type: 'application/json' });
+    this._download(blob, `${this.store}.json`);
+  }
+
+  _exportCSV() {
+    const rows = [['id','label','date_initiale','date_reelle','note','sub_id','sub_label','sub_date_initiale','sub_date_reelle','sub_status','sub_note']];
+    this.events.forEach(ev => {
+      if (!ev.sub || ev.sub.length === 0) {
+        rows.push([ev.id, ev.label, ev.date_initiale||'', ev.date_reelle||'', ev.note||'', '', '', '', '', '', '']);
+      } else {
+        ev.sub.forEach(s =>
+          rows.push([ev.id, ev.label, ev.date_initiale||'', ev.date_reelle||'', ev.note||'', s.id, s.label, s.date_initiale||'', s.date_reelle||'', s.status||'', s.note||''])
+        );
+      }
+    });
+    const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    this._download(new Blob([csv], { type: 'text/csv' }), `${this.store}.csv`);
+  }
+
+  _download(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  _triggerImport() {
+    const fi = document.getElementById('fileInput');
+    fi._targetTimeline = this;
+    fi.value = '';
+    fi.click();
+  }
+
+  async _handleImport(e) {
+    const tl = document.getElementById('fileInput')._targetTimeline;
+    if (!tl || tl !== this) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!Array.isArray(data)) throw new Error('Format invalide');
+      await dbClear(this.store);
+      this.events = [];
+      for (const ev of data) {
+        if (!ev.id) ev.id = uid();
+        if (!ev.sub) ev.sub = [];
+        this.events.push(ev);
+        await dbPut(this.store, ev);
+      }
+      this._render();
+      toast(`${data.length} événement(s) importé(s)`, 'success');
+    } catch (err) {
+      toast('Erreur d\'importation: ' + err.message, 'error');
+    }
+  }
+
+  /* ── Public: init from DB ─────────────────────────── */
+  async init() {
+    await ensureStore(await getDB(), this.store);
+    let stored = await dbAll(this.store);
+    if (stored.length === 0 && this.seed.length > 0) {
+      for (const ev of this.seed) await dbPut(this.store, ev);
+      stored = this.seed;
+    }
+    this.events = stored;
+    this._applyMode(this.mode);
+    this._render();
+    return this;
+  }
+
+  /* ── Public: data access ──────────────────────────── */
+  getEvents() { return this.events; }
 }
 
-/* ─── Shake animation CSS ───────────────────────────── */
-const style = document.createElement('style');
-style.textContent = `@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }`;
-document.head.appendChild(style);
-
-/* ─── Demo seed data ────────────────────────────────── */
-const DEMO = [
+/* ════════════════════════════════════════════════════════
+   Demo seed data
+════════════════════════════════════════════════════════ */
+const DEMO_A = [
   {
-    id: 'ev1',
-    label: 'Phase 1 — Analyse réglementaire',
-    date_initiale: '2026-01-15',
-    date_reelle:   '2026-01-20',
+    id: 'ev1', label: 'Phase 1 — Analyse réglementaire',
+    date_initiale: '2026-01-15', date_reelle: '2026-01-20',
+    status: 'statut4',
     note: 'Collecte et analyse des textes réglementaires applicables au projet.',
     sub: [
-      { id: 'sv1a', label: 'Inventaire des textes', date_initiale: '2026-01-15', date_reelle: '2026-01-16', status: 'statut4', note: 'Règlements EU + droit local' },
-      { id: 'sv1b', label: 'Analyse des écarts',    date_initiale: '2026-01-17', date_reelle: '2026-01-20', status: 'statut4', note: '' },
-      { id: 'sv1c', label: 'Rapport synthèse',       date_initiale: '2026-01-20', date_reelle: null,         status: 'statut2', note: 'En attente de validation direction' },
+      { id: 'sv1a', label: 'Inventaire des textes',  date_initiale: '2026-01-15', date_reelle: '2026-01-16', status: 'statut4', note: 'Règlements EU + droit local', date_reelle_history: [] },
+      { id: 'sv1b', label: 'Analyse des écarts',     date_initiale: '2026-01-17', date_reelle: '2026-01-20', status: 'statut4', note: '', date_reelle_history: [] },
+      { id: 'sv1c', label: 'Rapport synthèse',        date_initiale: '2026-01-20', date_reelle: null,         status: 'statut2', note: 'En attente de validation direction', date_reelle_history: [] },
     ]
   },
   {
-    id: 'ev2',
-    label: 'Phase 2 — Mise en conformité',
-    date_initiale: '2026-02-01',
-    date_reelle:   '2026-03-10',
+    id: 'ev2', label: 'Phase 2 — Mise en conformité',
+    date_initiale: '2026-02-01', date_reelle: '2026-03-10',
+    status: 'statut3',
     note: 'Implémentation des actions correctives identifiées lors de la phase 1.',
     sub: [
-      { id: 'sv2a', label: 'Plan d\'action détaillé', date_initiale: '2026-02-01', date_reelle: '2026-02-05', status: 'statut4', note: '' },
-      { id: 'sv2b', label: 'Formation équipes',       date_initiale: '2026-02-15', date_reelle: '2026-02-20', status: 'statut3', note: 'Session e-learning + présentiel' },
-      { id: 'sv2c', label: 'Mise à jour procédures',  date_initiale: '2026-03-01', date_reelle: null,         status: 'statut2', note: '' },
+      { id: 'sv2a', label: 'Plan d\'action détaillé', date_initiale: '2026-02-01', date_reelle: '2026-02-05', status: 'statut4', note: '', date_reelle_history: [] },
+      { id: 'sv2b', label: 'Formation équipes',        date_initiale: '2026-02-15', date_reelle: '2026-02-20', status: 'statut3', note: 'Session e-learning + présentiel', date_reelle_history: [] },
+      { id: 'sv2c', label: 'Mise à jour procédures',   date_initiale: '2026-03-01', date_reelle: null,         status: 'statut2', note: '', date_reelle_history: [] },
     ]
   },
   {
-    id: 'ev3',
-    label: 'Phase 3 — Audit interne',
-    date_initiale: '2026-04-01',
-    date_reelle:   null,
-    note: '',
+    id: 'ev3', label: 'Phase 3 — Audit interne',
+    date_initiale: '2026-04-01', date_reelle: null,
+    status: 'statut1', note: '',
     sub: [
-      { id: 'sv3a', label: 'Audit documentaire', date_initiale: '2026-04-01', date_reelle: null, status: 'statut1', note: '' },
-      { id: 'sv3b', label: 'Audit terrain',       date_initiale: '2026-04-15', date_reelle: null, status: 'statut1', note: '' },
+      { id: 'sv3a', label: 'Audit documentaire', date_initiale: '2026-04-01', date_reelle: null, status: 'statut1', note: '', date_reelle_history: [] },
+      { id: 'sv3b', label: 'Audit terrain',       date_initiale: '2026-04-15', date_reelle: null, status: 'statut1', note: '', date_reelle_history: [] },
     ]
   },
   {
-    id: 'ev4',
-    label: 'Certification finale',
-    date_initiale: '2026-06-01',
-    date_reelle:   null,
+    id: 'ev4', label: 'Certification finale',
+    date_initiale: '2026-06-01', date_reelle: null,
+    status: 'statut1',
     note: 'Soumission du dossier de certification auprès de l\'organisme compétent.',
     sub: []
   }
 ];
 
-/* ─── Init ──────────────────────────────────────────── */
-async function init() {
-  await openDB();
-  const stored = await dbAll();
-  if (stored.length === 0) {
-    // Seed demo data on first run
-    for (const ev of DEMO) await dbPut(ev);
-    events = DEMO;
-  } else {
-    events = stored;
+const DEMO_B = [
+  {
+    id: 'b1', label: 'Kick-off projet',
+    date_initiale: '2026-03-01', date_reelle: '2026-03-01',
+    status: 'statut4', note: 'Réunion de lancement avec toutes les parties prenantes.', sub: []
+  },
+  {
+    id: 'b2', label: 'Spécifications techniques',
+    date_initiale: '2026-03-15', date_reelle: '2026-03-20',
+    status: 'statut4', note: '', sub: []
+  },
+  {
+    id: 'b3', label: 'Développement — Sprint 1',
+    date_initiale: '2026-04-01', date_reelle: null,
+    status: 'statut2', note: 'Backend API + base de données.',
+    sub: [
+      { id: 'b3a', label: 'Modèle de données',  date_initiale: '2026-04-01', date_reelle: '2026-04-03', status: 'statut4', note: '', date_reelle_history: [] },
+      { id: 'b3b', label: 'Endpoints REST',       date_initiale: '2026-04-04', date_reelle: null,         status: 'statut2', note: '', date_reelle_history: [] },
+    ]
+  },
+  {
+    id: 'b4', label: 'Tests & recette',
+    date_initiale: '2026-05-01', date_reelle: null,
+    status: 'statut1', note: '', sub: []
+  },
+  {
+    id: 'b5', label: 'Mise en production',
+    date_initiale: '2026-06-15', date_reelle: null,
+    status: 'statut1', note: 'Déploiement sur infrastructure cloud.', sub: []
   }
-  setMode('read');   // start in read-only mode
-  renderTimeline();
-}
+];
 
-init().catch(err => {
+/* ════════════════════════════════════════════════════════
+   Bootstrap — create as many timelines as needed
+════════════════════════════════════════════════════════ */
+const app = document.getElementById('app');
+
+/* Timeline 1 */
+const divA = document.createElement('div');
+app.appendChild(divA);
+
+/* Timeline 2 */
+const divB = document.createElement('div');
+app.appendChild(divB);
+
+Promise.all([
+  new Timeline({
+    container:   divA,
+    title:       'Conformité réglementaire 2026',
+    dbStore:     'tl_conformite',
+    seedData:    DEMO_A,
+    initialMode: 'read',
+  }).init(),
+
+  new Timeline({
+    container:   divB,
+    title:       'Projet digital — Roadmap',
+    dbStore:     'tl_digital',
+    seedData:    DEMO_B,
+    initialMode: 'read',
+  }).init(),
+]).catch(err => {
   console.error(err);
-  toast('Erreur d\'initialisation de la base de données.', 'error');
+  toast('Erreur d\'initialisation.', 'error');
 });
-
-/* ─── Expose public API ─────────────────────────────── */
-window.TimelineAPI = { getEvents };
 </script>
 </body>
 </html>
