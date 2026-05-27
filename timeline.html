@@ -955,21 +955,34 @@ document.addEventListener('click', () =>
 ════════════════════════════════════════════════════════ */
 const DB_NAME    = 'spr_timeline';
 const TL_STORE   = 'timelines';
-const DB_VERSION = 1;
-
 let _dbReady = null;
 
 function getDB() {
   if (_dbReady) return _dbReady;
   _dbReady = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(TL_STORE))
-        db.createObjectStore(TL_STORE, { keyPath: 'id' });
+    /* Open without a version so we never request lower than what the browser holds.
+       onupgradeneeded fires only on first-ever open (v0→v1) or if the store is missing. */
+    const probe = indexedDB.open(DB_NAME);
+    probe.onsuccess = e => {
+      const db      = e.target.result;
+      const current = db.version;
+      db.close();
+      if (db.objectStoreNames.contains(TL_STORE)) {
+        /* Store already exists — reopen at same version to use it */
+        const req2 = indexedDB.open(DB_NAME, current);
+        req2.onsuccess = e2 => resolve(e2.target.result);
+        req2.onerror   = () => reject(req2.error);
+      } else {
+        /* Bump version to add the timelines store */
+        const req2 = indexedDB.open(DB_NAME, current + 1);
+        req2.onupgradeneeded = e2 => {
+          e2.target.result.createObjectStore(TL_STORE, { keyPath: 'id' });
+        };
+        req2.onsuccess = e2 => resolve(e2.target.result);
+        req2.onerror   = () => reject(req2.error);
+      }
     };
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror   = () => reject(req.error);
+    probe.onerror = () => reject(probe.error);
   });
   return _dbReady;
 }
