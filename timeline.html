@@ -1264,6 +1264,7 @@ class Timeline {
     /* restore select value after re-render */
     const sel = this.host.querySelector(`#${id}-sortSelect`);
     if (sel) sel.value = this.sortKey;
+    this._expandAll(true);
     this._renderStats();
   }
 
